@@ -1,10 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { BottomNav } from './components/BottomNav';
 import { Hero } from './components/Hero';
 import { Features } from './components/Features';
 import { Trending } from './components/Trending';
-import { TrendingDevices } from './components/TrendingDevices';
 import { CTA } from './components/CTA';
 import { Footer } from './components/Footer';
 import { Login } from './components/Login';
@@ -41,6 +40,9 @@ import { AdminWarranties } from './components/AdminWarranties';
 import { AdminReports } from './components/AdminReports';
 import { AdminSettings } from './components/AdminSettings';
 
+// --- IMPORT OUR NEW FIREBASE NOTIFICATION HOOK ---
+import { requestNotificationPermission } from './firebase';
+
 export interface CartItem {
     id: string;
     name: string;
@@ -69,6 +71,15 @@ export default function App() {
     const [userName, setUserName] = useState(() => localStorage.getItem('userName') || '');
     const [userEmail, setUserEmail] = useState(() => localStorage.getItem('userEmail') || '');
 
+    // --- FIREBASE SILENT INIT ON APP LOAD ---
+    // If the user is already logged in when they open the website, fetch/verify their token
+    useEffect(() => {
+        const token = localStorage.getItem('jwt_token');
+        if (token) {
+            requestNotificationPermission(token);
+        }
+    }, []);
+
     const navigate = useCallback((dest: Page, data?: any) => {
         setPage(dest);
         setPageData(data || null);
@@ -82,6 +93,11 @@ export default function App() {
         setIsAuthenticated(true);
         setUserName(name);
         setUserEmail(email);
+
+        // --- FIREBASE TRIGGER ON LOGIN ---
+        // Ask for permission right after they log in
+        requestNotificationPermission(token);
+
         navigate('home');
     };
 
@@ -151,8 +167,6 @@ export default function App() {
     };
 
     const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
-
-
 
     // Pages that hide the standard Navbar + BottomNav
     const hideNav = ['login', 'register', 'forgot-password'].includes(page);
@@ -304,7 +318,6 @@ export default function App() {
                         <Hero onNavigate={navigate as any} />
                         <Features />
                         <Trending onNavigate={navigate as any} onAddToCart={handleAddToCart} />
-                        <TrendingDevices />
                         <CTA />
                         <Footer />
                     </>
