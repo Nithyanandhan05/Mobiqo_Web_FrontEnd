@@ -1,0 +1,252 @@
+.dashboard-container {
+    padding-top: 2rem;
+    padding-bottom: 100px;
+    /* Space for bottom nav */
+    background: var(--bg-main);
+    min-height: 100vh;
+}
+
+/* 1. Header */
+.dash-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+}
+
+.greeting {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.main-title {
+    font-size: 1.5rem;
+    color: var(--primary);
+    font-weight: 700;
+    max-width: 80%;
+    line-height: 1.3;
+}
+
+.profile-icon {
+    width: 44px;
+    height: 44px;
+    background-color: #EBF3FF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* 2. Search Box */
+.search-wrapper {
+    margin-bottom: 2rem;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background-color: #FFFFFF;
+    border: 1.5px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 0.8rem 1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.search-box:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(29, 106, 229, 0.2);
+}
+
+.search-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--primary);
+    margin-right: 0.75rem;
+}
+
+.search-input-field {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    color: var(--text-main);
+    outline: none;
+    font-family: var(--font-body);
+}
+
+.search-input-field::placeholder {
+    color: #9CA3AF;
+    font-weight: 400;
+}
+
+/* 3. AI Banner */
+.ai-banner {
+    background: var(--primary-gradient);
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    color: white;
+    box-shadow: 0 10px 25px -5px rgba(29, 106, 229, 0.4);
+}
+
+.ai-banner-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.ai-banner-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.ai-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ai-input {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    padding: 0.875rem 3rem 0.875rem 1rem;
+    color: white;
+    font-size: 0.95rem;
+    font-family: var(--font-body);
+    outline: none;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.ai-input::placeholder {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ai-input:focus {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.ai-mic-btn {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 4. Category Chips */
+.category-scroll {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    /* For scrollbar if visible */
+}
+
+.category-chip {
+    padding: 0.6rem 1.5rem;
+    border-radius: 20px;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.category-chip.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* 5. Top Picks Grid */
+.section-title {
+    font-size: 1.25rem;
+    margin-bottom: 1.25rem;
+    color: var(--text-main);
+}
+
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.product-card {
+    background: #FFFFFF;
+    border: 1px solid #E5E7EB;
+    border-radius: 16px;
+    padding: 1rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.match-badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: var(--accent-green);
+    color: var(--accent-green-text);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 8px;
+    z-index: 2;
+}
+
+.product-img-wrapper {
+    width: 100%;
+    aspect-ratio: 1;
+    /* Match the square look from mockup */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+}
+
+.product-img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+}
+
+/* .card-title {
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+  font-family: var(--font-body);
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-price {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 1.1rem;
+  margin-top: auto;
+} */
