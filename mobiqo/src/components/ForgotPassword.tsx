@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { validateEmail, validatePassword } from '../utils/validation';
 
 interface ForgotPasswordProps {
     onNavigate: (page: 'home' | 'login' | 'register', data?: any) => void;
@@ -18,20 +19,25 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
+    // Validation States
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(newPassword);
+    const confirmError = confirmPassword.length > 0 && confirmPassword !== newPassword ? "Passwords do not match" : null;
+
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!email) {
-            setError('Please enter your registered email address.');
+        if (emailError || !email) {
+            setError('Please enter a valid registered email address.');
             return;
         }
 
         setLoading(true);
         try {
-            const res = await fetch('/api/auth/forgot-password/request', {
+            const res = await fetch('http://127.0.0.1:5000/forgot_password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
+                body: JSON.stringify({ email: email.trim() })
             });
             const data = await res.json();
 
@@ -59,22 +65,20 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
 
         setLoading(true);
         try {
-            const res = await fetch('/api/auth/forgot-password/verify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp: otpString })
-            });
-            const data = await res.json();
+            // Reusing the same verfiy-otp route used in registration since it's an OTP verification
+            // Let's actually NOT do this because there is no `/api/auth/forgot-password/verify` in the backend. 
+            // The backend ONLY has `/forgot_password` (sends OTP) and `/reset_password` (verifies OTP + changes password at the same time).
+            // Wait, looking closely at app.py, the /reset_password endpoint expects:
+            // email, otp, new_password
 
-            if (res.ok && data.status === 'success') {
-                setSuccessMsg('OTP Verified! You can now reset your password.');
-                setStep(3);
-            } else {
-                setError(data.message || 'Invalid OTP. Please try again.');
-            }
+            // So step 2 in UI just needs to visually transition to step 3 after they've typed 6 digits.
+            // We don't actually hit the backend in step 2.
+
+            setSuccessMsg('OTP format accepted. Please create your new password.');
+            setStep(3);
+            setLoading(false);
         } catch {
-            setError('Server connection error. Please try again.');
-        } finally {
+            setError('An error occurred.');
             setLoading(false);
         }
     };
@@ -83,21 +87,17 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
         e.preventDefault();
         setError('');
 
-        if (!newPassword || !confirmPassword) {
-            setError('Please fill in both password fields.');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            setError('Passwords do not match.');
+        if (passwordError || confirmError || !newPassword || !confirmPassword) {
+            setError('Please fix the password validation errors.');
             return;
         }
 
         setLoading(true);
         try {
-            const res = await fetch('/api/auth/forgot-password/reset', {
+            const res = await fetch('http://127.0.0.1:5000/reset_password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, otp: otp.join(''), new_password: newPassword })
+                body: JSON.stringify({ email: email.trim(), otp: otp.join(''), new_password: newPassword })
             });
             const data = await res.json();
 
@@ -179,11 +179,12 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="name@example.com"
-                                className="w-full py-4 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all"
+                                className={`w-full py-4 px-5 bg-slate-50 border rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 transition-all ${emailError && email.length > 0 ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
                             />
+                            {emailError && email.length > 0 && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{emailError}</p>}
                         </div>
 
-                        <button type="submit" disabled={loading} className="w-full py-4 mt-2 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2">
+                        <button type="submit" disabled={loading || !!emailError || !email} className="w-full py-4 mt-2 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                             {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : 'Send Verification OTP'}
                         </button>
                     </form>
@@ -230,8 +231,9 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 placeholder="Enter strong password"
-                                className="w-full py-4 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all"
+                                className={`w-full py-4 px-5 bg-slate-50 border rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 transition-all ${passwordError && newPassword.length > 0 ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
                             />
+                            {passwordError && newPassword.length > 0 && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{passwordError}</p>}
                         </div>
                         <div>
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 block">Confirm Password</label>
@@ -240,11 +242,12 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="Retype password"
-                                className="w-full py-4 px-5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all"
+                                className={`w-full py-4 px-5 bg-slate-50 border rounded-2xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 transition-all ${confirmError && confirmPassword.length > 0 ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
                             />
+                            {confirmError && confirmPassword.length > 0 && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{confirmError}</p>}
                         </div>
 
-                        <button type="submit" disabled={loading} className="w-full mt-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2">
+                        <button type="submit" disabled={loading || !!passwordError || !!confirmError || !newPassword} className="w-full mt-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                             {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (
                                 <>Reset Password <span className="material-symbols-outlined text-sm">check_circle</span></>
                             )}

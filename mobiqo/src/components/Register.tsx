@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { validateName, validateEmail, validatePhone, validatePassword } from '../utils/validation';
 
 interface RegisterProps {
     onNavigate: (page: 'home' | 'login' | 'cart' | 'compare' | 'warranty', data?: any) => void;
@@ -13,57 +14,138 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [agreed, setAgreed] = useState(false);
 
+    // UI states
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [apiError, setApiError] = useState('');
+
+    // OTP Modal States
+    const [showOtpModal, setShowOtpModal] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [otpLoading, setOtpLoading] = useState(false);
+    const [otpError, setOtpError] = useState('');
+
+    // 🚀 DYNAMIC INSTANT VALIDATION (No lag, evaluates every keystroke)
+    const nameError = validateName(fullName);
+    const emailError = validateEmail(email);
+    const mobileError = validatePhone(mobile);
+    const passwordError = validatePassword(password);
+    const confirmError = confirmPassword.length > 0 && confirmPassword !== password ? "Passwords do not match" : null;
+
+    // Check if the whole form is perfect before allowing submission
+    const isFormValid =
+        fullName.length > 0 && nameError === null &&
+        email.length > 0 && emailError === null &&
+        mobile.length > 0 && mobileError === null &&
+        password.length > 0 && passwordError === null &&
+        confirmPassword === password &&
+        agreed;
+
+    // Calculate dynamic password strength exactly like Android
+    const getPasswordStrength = () => {
+        if (!password) return { percent: 0, color: 'bg-slate-200', text: '' };
+        let strength = 0;
+        if (password.length >= 8) strength += 25;
+        if (/[A-Z]/.test(password)) strength += 25;
+        if (/\d/.test(password)) strength += 25;
+        if (/[@$!%*?&]/.test(password)) strength += 25;
+
+        if (strength <= 25) return { percent: 25, color: 'bg-red-500', text: 'Weak' };
+        if (strength === 50) return { percent: 50, color: 'bg-orange-500', text: 'Moderate' };
+        if (strength === 75) return { percent: 75, color: 'bg-yellow-500', text: 'Good' };
+        return { percent: 100, color: 'bg-green-500', text: 'Strong' };
+    };
+
+    const strengthData = getPasswordStrength();
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setApiError('');
 
-        if (!fullName || !email || !mobile || !password || !confirmPassword) {
-            setError('Please fill in all fields.');
-            return;
-        }
-        if (password !== confirmPassword) {
-            setError('Passwords do not match.');
-            return;
-        }
-        if (!agreed) {
-            setError('You must agree to the terms and conditions.');
+        if (!isFormValid) {
+            setApiError('Please fix the validation errors in the fields below.');
             return;
         }
 
         setLoading(true);
         try {
-            const res = await fetch('/api/register', {
+            // STEP 1: SEND OTP
+            const res = await fetch('http://127.0.0.1:5000/send-otp', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ full_name: fullName, email, mobile, password })
+                body: JSON.stringify({ email: email.trim() })
             });
 
             const data = await res.json();
             if (res.ok && data.status === 'success') {
-                // Now automatically log them in
-                const loginRes = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                const loginData = await loginRes.json();
-
-                if (loginRes.ok && loginData.status === 'success') {
-                    onLoginSuccess(loginData.token, loginData.user_name, email);
-                } else {
-                    // Fail fallback to login page
-                    onNavigate('login');
-                }
+                setShowOtpModal(true);
+                setOtpError('');
             } else {
-                setError(data.message || 'Registration failed.');
+                setApiError(data.message || 'Failed to send OTP.');
             }
         } catch (err) {
-            setError('Unable to connect to server.');
+            setApiError('Unable to connect to server.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        if (!otp || otp.length !== 6) {
+            setOtpError('Please enter a valid 6-digit OTP.');
+            return;
+        }
+
+        setOtpLoading(true);
+        setOtpError('');
+
+        try {
+            // STEP 2: VERIFY OTP
+            const verifyRes = await fetch('http://127.0.0.1:5000/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), otp: otp.trim() })
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.status === 'success') {
+                // STEP 3: REGISTER USER
+                const registerRes = await fetch('http://127.0.0.1:5000/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name: fullName.trim(), email: email.trim(), mobile: mobile.trim(), password })
+                });
+
+                const registerData = await registerRes.json();
+
+                if (registerRes.ok && registerData.status === 'success') {
+                    // STEP 4: AUTO LOGIN
+                    const loginRes = await fetch('http://127.0.0.1:5000/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email.trim(), password })
+                    });
+                    const loginData = await loginRes.json();
+
+                    if (loginRes.ok && loginData.status === 'success') {
+                        setShowOtpModal(false);
+                        onLoginSuccess(loginData.token, loginData.user_name, email.trim());
+                    } else {
+                        setShowOtpModal(false);
+                        onNavigate('login');
+                    }
+                } else {
+                    setOtpError(registerData.message || 'Registration failed.');
+                }
+            } else {
+                setOtpError(verifyData.message || 'Invalid or expired OTP.');
+            }
+        } catch (err) {
+            setOtpError('Unable to connect to server.');
+        } finally {
+            setOtpLoading(false);
         }
     };
 
@@ -83,113 +165,125 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                     <p className="text-lg text-blue-50/90 font-medium leading-relaxed drop-shadow-md page-enter" style={{ animationDelay: '200ms' }}>
                         Join Our Enterprise Network & Secure Your Devices Today
                     </p>
-
-                    <div className="grid grid-cols-3 gap-6 mt-16 pt-12 border-t border-white/10 page-enter" style={{ animationDelay: '300ms' }}>
-                        <div>
-                            <p className="text-2xl font-black text-white">256-bit</p>
-                            <p className="text-[10px] uppercase tracking-widest text-blue-100/70 font-bold mt-1">Encryption</p>
-                        </div>
-                        <div className="border-x border-white/10">
-                            <p className="text-2xl font-black text-white">24/7</p>
-                            <p className="text-[10px] uppercase tracking-widest text-blue-100/70 font-bold mt-1">Monitoring</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-black text-white">99.9%</p>
-                            <p className="text-[10px] uppercase tracking-widest text-blue-100/70 font-bold mt-1">Uptime</p>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             {/* Right Panel - Register Form */}
             <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto max-h-screen">
-                <div className="absolute top-6 right-6">
-                    <button className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:text-slate-900 transition-colors">
-                        <span className="material-symbols-outlined font-variation-fill">dark_mode</span>
-                    </button>
-                </div>
-
-                <div className="w-full max-w-md page-enter py-12">
-                    {/* Mobile Logo */}
-                    <div className="lg:hidden flex justify-center mb-6">
-                        <div className="w-16 h-16 bg-blue-50 rounded-2xl p-3 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-primary text-3xl">shield_person</span>
-                        </div>
-                    </div>
+                <div className="w-full max-w-md py-8">
 
                     <div className="text-center mb-8">
                         <h2 className="text-3xl font-black text-[#1f93f6] mb-2">Create Account</h2>
                         <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Join our Enterprise Network</p>
                     </div>
 
-                    {error && (
+                    {apiError && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-600 text-sm font-bold">
                             <span className="material-symbols-outlined text-lg">error</span>
-                            {error}
+                            {apiError}
                         </div>
                     )}
 
                     <form onSubmit={handleRegister} className="space-y-4">
-                        <div className="relative">
+
+                        {/* Full Name */}
+                        <div>
                             <input
                                 type="text"
                                 value={fullName}
                                 onChange={(e) => setFullName(e.target.value)}
                                 placeholder="FULL NAME"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all"
+                                className={`w-full bg-slate-50 border rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all ${nameError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
                             />
+                            {nameError && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{nameError}</p>}
                         </div>
 
-                        <div className="relative">
+                        {/* Email */}
+                        <div>
                             <input
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="EMAIL ADDRESS"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all"
+                                className={`w-full bg-slate-50 border rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all ${emailError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
                             />
+                            {emailError && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{emailError}</p>}
                         </div>
 
-                        <div className="relative">
+                        {/* Mobile */}
+                        <div>
                             <input
                                 type="tel"
                                 value={mobile}
-                                onChange={(e) => setMobile(e.target.value)}
+                                maxLength={10}
+                                onChange={(e) => {
+                                    // Block non-numeric typing instantly
+                                    const val = e.target.value.replace(/[^0-9]/g, '');
+                                    setMobile(val);
+                                }}
                                 placeholder="MOBILE NUMBER"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all"
+                                className={`w-full bg-slate-50 border rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all ${mobileError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
                             />
+                            {mobileError && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{mobileError}</p>}
                         </div>
 
-                        <div className="relative">
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="PASSWORD"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all pr-12"
-                            />
-                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl cursor-pointer">visibility_off</span>
-                        </div>
-                        {password && (
-                            <div className="flex items-center gap-2 mt-2 px-2">
-                                <div className="h-1 flex-1 bg-purple-500 rounded-full"></div>
-                                <div className="h-1 flex-1 bg-purple-100 rounded-full"></div>
-                                <div className="h-1 flex-1 bg-purple-100 rounded-full"></div>
-                                <span className="text-xs text-slate-400 font-medium">Password strength: Moderate</span>
+                        {/* Password */}
+                        <div>
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="PASSWORD"
+                                    className={`w-full bg-slate-50 border rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all pr-12 ${passwordError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
+                                />
+                                <span
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="material-symbols-outlined absolute right-4 top-[14px] text-slate-400 text-xl cursor-pointer hover:text-slate-600"
+                                >
+                                    {showPassword ? "visibility" : "visibility_off"}
+                                </span>
                             </div>
-                        )}
 
-                        <div className="relative">
-                            <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                placeholder="CONFIRM PASSWORD"
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all pr-12"
-                            />
-                            <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl cursor-pointer">visibility_off</span>
+                            {/* Dynamic Password Strength Meter */}
+                            {password && (
+                                <div className="flex flex-col mt-2 px-2">
+                                    <div className="flex h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full ${strengthData.color} transition-all duration-500`}
+                                            style={{ width: `${strengthData.percent}%` }}
+                                        ></div>
+                                    </div>
+                                    <span className="text-xs text-slate-500 font-bold mt-1.5">
+                                        Password strength: <span className={strengthData.color.replace('bg-', 'text-')}>{strengthData.text}</span>
+                                    </span>
+                                </div>
+                            )}
+
+                            {passwordError && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{passwordError}</p>}
                         </div>
 
+                        {/* Confirm Password */}
+                        <div>
+                            <div className="relative">
+                                <input
+                                    type={showConfirmPassword ? "text" : "password"}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="CONFIRM PASSWORD"
+                                    className={`w-full bg-slate-50 border rounded-xl py-4 px-5 text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all pr-12 ${confirmError ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : 'border-slate-200 focus:border-[#1f93f6] focus:ring-[#1f93f6]/20'}`}
+                                />
+                                <span
+                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    className="material-symbols-outlined absolute right-4 top-[14px] text-slate-400 text-xl cursor-pointer hover:text-slate-600"
+                                >
+                                    {showConfirmPassword ? "visibility" : "visibility_off"}
+                                </span>
+                            </div>
+                            {confirmError && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{confirmError}</p>}
+                        </div>
+
+                        {/* Terms Checkbox */}
                         <div className="flex items-start gap-3 mt-4 px-2">
                             <div className="relative flex items-center justify-center w-5 h-5 mt-0.5">
                                 <input
@@ -207,8 +301,8 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
 
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="w-full mt-6 py-4 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 btn-press disabled:opacity-70 disabled:cursor-not-allowed"
+                            disabled={!isFormValid || loading}
+                            className="w-full mt-6 py-4 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 btn-press disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -226,6 +320,59 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                     </p>
                 </div>
             </div>
+
+            {/* OTP Modal UI */}
+            {showOtpModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative animate-in fade-in zoom-in duration-300">
+                        <button
+                            onClick={() => setShowOtpModal(false)}
+                            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200 transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+
+                        <div className="w-16 h-16 bg-[#1f93f6]/10 rounded-2xl flex items-center justify-center mb-6 mx-auto">
+                            <span className="material-symbols-outlined text-3xl text-[#1f93f6]">mark_email_read</span>
+                        </div>
+
+                        <h3 className="text-2xl font-black text-center text-slate-900 mb-2">Verify Email</h3>
+                        <p className="text-center text-slate-500 text-sm font-medium mb-6">
+                            We've sent a 6-digit verification code to <span className="font-bold text-slate-700">{email}</span>.
+                        </p>
+
+                        {otpError && (
+                            <div className="mb-6 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 text-red-600 text-xs font-bold">
+                                <span className="material-symbols-outlined text-base">error</span>
+                                {otpError}
+                            </div>
+                        )}
+
+                        <div className="mb-6">
+                            <input
+                                type="text"
+                                maxLength={6}
+                                value={otp}
+                                onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                                placeholder="ENTER 6-DIGIT OTP"
+                                className="w-full text-center tracking-[0.5em] font-mono text-2xl py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 placeholder:text-slate-300 placeholder:text-sm placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-[#1f93f6]/20 focus:border-[#1f93f6] transition-all"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleVerifyOtp}
+                            disabled={otpLoading || otp.length !== 6}
+                            className="w-full py-4 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {otpLoading ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            ) : (
+                                "Verify & Register"
+                            )}
+                        </button>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }
