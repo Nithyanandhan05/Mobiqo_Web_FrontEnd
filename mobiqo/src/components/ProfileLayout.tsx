@@ -41,7 +41,7 @@ export function ProfileLayout({ activeTab, onNavigate, children }: ProfileLayout
         { id: 'orders', label: 'My Orders', icon: 'shopping_bag', action: () => onNavigate('orders') },
         { id: 'warranty', label: 'Warranty', icon: 'security', action: () => onNavigate('warranty') },
         { id: 'addresses', label: 'Addresses', icon: 'location_on', action: () => onNavigate('addresses') },
-        { id: 'payment', label: 'Payment', icon: 'credit_card', action: () => { } },
+        { id: 'payment', label: 'Payment', icon: 'credit_card', action: () => onNavigate('payment') },
         { id: 'notifications', label: 'Alerts', icon: 'notifications', action: () => onNavigate('notifications') },
         { id: 'privacy', label: 'Privacy', icon: 'lock', action: () => onNavigate('privacy') },
     ];

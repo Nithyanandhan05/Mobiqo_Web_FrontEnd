@@ -87,7 +87,7 @@ export function Trending({ onNavigate, onAddToCart }: TrendingProps) {
                     >
                         <div className="relative aspect-square rounded-xl bg-slate-100 dark:bg-slate-900 mb-4 overflow-hidden">
                             <img
-                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500"
                                 alt={device.name}
                                 src={getHDImage(device.image, device.name)}
                             />

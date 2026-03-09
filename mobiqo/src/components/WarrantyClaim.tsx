@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface WarrantyClaimProps {
     onNavigate?: (page: any, data?: any) => void;
@@ -8,27 +8,51 @@ interface WarrantyClaimProps {
 export function WarrantyClaim({ onNavigate, warranty }: WarrantyClaimProps) {
     const [claimType, setClaimType] = useState('repair');
     const [description, setDescription] = useState('');
+    const [invoiceImage, setInvoiceImage] = useState<File | null>(null);
+    const [deviceImage, setDeviceImage] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [error, setError] = useState('');
+
+    const invoiceInputRef = useRef<HTMLInputElement>(null);
+    const deviceInputRef = useRef<HTMLInputElement>(null);
 
     const device = warranty?.device_name || 'Your Device';
 
     const handleSubmit = async () => {
         if (!description.trim()) return;
         setSubmitting(true);
+        setError('');
         try {
             const token = localStorage.getItem('jwt_token');
             if (token) {
-                await fetch('/api/warranty_claim', {
+                const formData = new FormData();
+                formData.append('issue_type', claimType);
+                formData.append('description', description);
+                formData.append('service_mode', 'center'); // Default to center for now
+                if (invoiceImage) formData.append('invoice_image', invoiceImage);
+                if (deviceImage) formData.append('device_image', deviceImage);
+
+                const res = await fetch(`/api/warranties/${warranty?.id}/claim`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ warranty_id: warranty?.id, claim_type: claimType, description })
+                    headers: { 'Authorization': `Bearer ${token}` }, // Note: No 'Content-Type' when sending FormData
+                    body: formData
                 });
+
+                const data = await res.json();
+                if (res.ok && data.status === 'success') {
+                    setSubmitted(true);
+                } else {
+                    setError(data.message || 'Failed to submit claim.');
+                }
+            } else {
+                setError('Authentication error. Please login again.');
             }
-        } catch { /* ignore */ }
-        await new Promise(r => setTimeout(r, 1000));
-        setSubmitting(false);
-        setSubmitted(true);
+        } catch (err) {
+            setError('Server connection error. Please try again.');
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     if (submitted) {
@@ -100,13 +124,47 @@ export function WarrantyClaim({ onNavigate, warranty }: WarrantyClaimProps) {
                 <div>
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Upload Proof</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {['Purchase Receipt', 'Device Photos'].map((label, i) => (
-                            <div key={i} className="border-2 border-dashed border-slate-200 rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center gap-2 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                                <span className="material-symbols-outlined text-slate-300 text-3xl">upload_file</span>
-                                <p className="font-bold text-slate-600 text-sm">{label}</p>
-                                <p className="text-xs text-slate-400">JPG, PNG, PDF up to 5MB</p>
-                            </div>
-                        ))}
+                        {/* Invoice Upload */}
+                        <div
+                            onClick={() => invoiceInputRef.current?.click()}
+                            className={`border-2 border-dashed rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center gap-2 text-center transition-colors cursor-pointer ${invoiceImage ? 'border-primary/50 bg-primary/5' : 'border-slate-200 hover:border-primary/50'}`}
+                        >
+                            <span className={`material-symbols-outlined text-3xl ${invoiceImage ? 'text-primary' : 'text-slate-300'}`}>
+                                {invoiceImage ? 'image' : 'upload_file'}
+                            </span>
+                            <p className="font-bold text-slate-600 text-sm">
+                                {invoiceImage ? invoiceImage.name : 'Purchase Receipt'}
+                            </p>
+                            <p className="text-xs text-slate-400">JPG, PNG, PDF up to 5MB</p>
+                            <input
+                                type="file"
+                                ref={invoiceInputRef}
+                                onChange={(e) => setInvoiceImage(e.target.files?.[0] || null)}
+                                className="hidden"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                            />
+                        </div>
+
+                        {/* Device Photo Upload */}
+                        <div
+                            onClick={() => deviceInputRef.current?.click()}
+                            className={`border-2 border-dashed rounded-2xl p-4 sm:p-6 flex flex-col items-center justify-center gap-2 text-center transition-colors cursor-pointer ${deviceImage ? 'border-primary/50 bg-primary/5' : 'border-slate-200 hover:border-primary/50'}`}
+                        >
+                            <span className={`material-symbols-outlined text-3xl ${deviceImage ? 'text-primary' : 'text-slate-300'}`}>
+                                {deviceImage ? 'image' : 'upload_file'}
+                            </span>
+                            <p className="font-bold text-slate-600 text-sm">
+                                {deviceImage ? deviceImage.name : 'Device Photos'}
+                            </p>
+                            <p className="text-xs text-slate-400">JPG, PNG, PDF up to 5MB</p>
+                            <input
+                                type="file"
+                                ref={deviceInputRef}
+                                onChange={(e) => setDeviceImage(e.target.files?.[0] || null)}
+                                className="hidden"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -121,6 +179,13 @@ export function WarrantyClaim({ onNavigate, warranty }: WarrantyClaimProps) {
                         className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-medium border border-slate-200 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none text-slate-700 placeholder:text-slate-400"
                     />
                 </div>
+
+                {error && (
+                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2 text-red-600 text-xs font-bold">
+                        <span className="material-symbols-outlined text-base">error</span>
+                        {error}
+                    </div>
+                )}
 
                 <button
                     onClick={handleSubmit}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getHDImage } from '../utils/imageHelper';
 
 interface WarrantyDevice {
     id?: number;
@@ -7,6 +8,7 @@ interface WarrantyDevice {
     purchase_date?: string;
     warranty_expiry?: string;
     status?: string;
+    image_url?: string;
 }
 
 interface WarrantyMainProps {
@@ -22,13 +24,21 @@ export function WarrantyMain({ onNavigate }: WarrantyMainProps) {
             try {
                 const token = localStorage.getItem('jwt_token');
                 if (token) {
-                    const res = await fetch('/api/warranties', {
+                    const res = await fetch('/api/my_warranties', {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        if (data.status === 'success' && data.warranties?.length > 0) {
-                            setWarranties(data.warranties);
+                        if (data.status === 'success' && data.devices?.length > 0) {
+                            // Map backend fields to frontend interface
+                            const mappedWarranties = data.devices.map((d: any) => ({
+                                id: d.id,
+                                device_name: d.name,
+                                warranty_expiry: d.expiry,
+                                status: d.status,
+                                image_url: d.image_url || '',
+                            }));
+                            setWarranties(mappedWarranties);
                             setLoading(false);
                             return;
                         }
@@ -146,8 +156,13 @@ export function WarrantyMain({ onNavigate }: WarrantyMainProps) {
                             const daysLeft = getDaysLeft(w.warranty_expiry);
                             return (
                                 <div key={w.id} className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-                                    <div className="w-11 h-11 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
-                                        <span className="material-symbols-outlined text-primary font-variation-fill">smartphone</span>
+                                <div className="w-12 h-12 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                        <img
+                                            src={getHDImage(w.image_url, w.device_name || '')}
+                                            alt={w.device_name}
+                                            className="w-full h-full object-contain p-1"
+                                            onError={(e) => { (e.target as HTMLImageElement).src = `https://tse1.mm.bing.net/th?q=${encodeURIComponent((w.device_name || 'smartphone').split('(')[0].trim() + ' smartphone')}&w=200&h=200&c=7&rs=1`; }}
+                                        />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex flex-wrap items-center gap-2 mb-1">

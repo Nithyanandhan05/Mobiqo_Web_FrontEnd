@@ -34,7 +34,7 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
 
         setLoading(true);
         try {
-            const res = await fetch('http://127.0.0.1:5000/forgot_password', {
+            const res = await fetch('/api/forgot_password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim() })
@@ -94,7 +94,7 @@ export function ForgotPassword({ onNavigate }: ForgotPasswordProps) {
 
         setLoading(true);
         try {
-            const res = await fetch('http://127.0.0.1:5000/reset_password', {
+            const res = await fetch('/api/reset_password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim(), otp: otp.join(''), new_password: newPassword })

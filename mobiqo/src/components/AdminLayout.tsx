@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 interface AdminLayoutProps {
     children: ReactNode;
-    activeTab: 'dashboard' | 'users' | 'inventory' | 'warranties' | 'orders' | 'settings';
+    activeTab: 'dashboard' | 'users' | 'inventory' | 'warranties' | 'orders' | 'settings' | 'reports';
     onNavigate: (page: any) => void;
 }
 
@@ -22,7 +22,7 @@ export function AdminLayout({ children, activeTab, onNavigate }: AdminLayoutProp
         <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
             {/* Top Navigation Bar */}
             <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-                <div className="max-w-[1600px] mx-auto px-4 xl:px-6 h-16 xl:h-20 flex items-center justify-between">
+                <div className="max-w-[1600px] mx-auto px-4 xl:px-6 h-14 md:h-16 xl:h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3 lg:gap-6 xl:gap-10">
                         <div className="flex items-center gap-2 cursor-pointer flex-shrink-0" onClick={() => onNavigate('home')}>
                             <div className="w-8 h-8 xl:w-10 xl:h-10 bg-white/10 rounded-xl flex items-center justify-center p-0.5 shadow-sm border border-slate-100">
@@ -31,6 +31,7 @@ export function AdminLayout({ children, activeTab, onNavigate }: AdminLayoutProp
                             <span className="text-lg xl:text-xl font-black tracking-tight text-slate-800">Mobiqo <span className="text-primary xl:inline hidden">Admin</span></span>
                         </div>
 
+                        {/* Desktop nav — hidden on mobile */}
                         <nav className="hidden md:flex items-center gap-0.5 lg:gap-1 xl:gap-2">
                             {navItems.map((item) => (
                                 <button
@@ -65,13 +66,13 @@ export function AdminLayout({ children, activeTab, onNavigate }: AdminLayoutProp
                 </div>
             </header>
 
-            {/* Main Content Area */}
-            <main className="flex-1 max-w-[1600px] mx-auto w-full p-8 animate-in fade-in duration-700">
+            {/* Main Content Area — pb-20 on mobile for bottom nav */}
+            <main className="flex-1 max-w-[1600px] mx-auto w-full p-4 sm:p-6 md:p-8 pb-24 md:pb-8 animate-in fade-in duration-700">
                 {children}
             </main>
 
-            {/* Footer Status Bar */}
-            <footer className="bg-white border-t border-slate-200 px-8 py-4 flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+            {/* Footer Status Bar — hidden on mobile */}
+            <footer className="hidden md:flex bg-white border-t border-slate-200 px-8 py-4 items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                         <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -85,6 +86,30 @@ export function AdminLayout({ children, activeTab, onNavigate }: AdminLayoutProp
                     <button className="text-primary hover:underline">SUPPORT CENTER</button>
                 </div>
             </footer>
+
+            {/* Mobile Bottom Tab Bar — visible only on mobile */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 flex items-center justify-around px-1 py-2 safe-area-inset-bottom">
+                {navItems.map((item) => (
+                    <button
+                        key={item.id}
+                        onClick={() => onNavigate(item.id)}
+                        className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all min-w-0 flex-1 ${activeTab === item.activeId
+                            ? 'text-primary'
+                            : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                    >
+                        <span className={`material-symbols-outlined text-[22px] transition-all ${activeTab === item.activeId ? 'font-variation-fill' : ''}`}>
+                            {item.icon}
+                        </span>
+                        <span className="text-[9px] font-black uppercase tracking-wider truncate w-full text-center leading-tight">
+                            {item.label}
+                        </span>
+                        {activeTab === item.activeId && (
+                            <span className="w-1 h-1 bg-primary rounded-full mt-0.5" />
+                        )}
+                    </button>
+                ))}
+            </nav>
         </div>
     );
 }

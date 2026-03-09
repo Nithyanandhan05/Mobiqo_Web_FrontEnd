@@ -5,6 +5,12 @@ interface WarrantyExtendProps {
     warranty?: any;
 }
 
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
+
 const PLANS = [
     {
         id: '1yr',
@@ -37,21 +43,90 @@ export function WarrantyExtend({ onNavigate, warranty }: WarrantyExtendProps) {
     const device = warranty?.device_name || 'Your Device';
     const plan = PLANS.find(p => p.id === selectedPlan)!;
 
+    const loadRazorpayScript = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+            if (window.Razorpay) {
+                resolve(true);
+                return;
+            }
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
     const handleExtend = async () => {
         setProcessing(true);
+
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) {
+            alert('Failed to load Razorpay payment gateway. Please check your internet connection.');
+            setProcessing(false);
+            return;
+        }
+
         try {
             const token = localStorage.getItem('jwt_token');
             if (token) {
-                await fetch('/api/extend_warranty', {
+                // Step 1: Create Draft Order
+                const res = await fetch('/api/create_razorpay_order', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ warranty_id: warranty?.id, plan: selectedPlan })
+                    body: JSON.stringify({ amount: plan.price })
                 });
+
+                let razorpayOrderId = '';
+                if (res.ok) {
+                    const data = await res.json();
+                    razorpayOrderId = data.razorpay_order_id;
+                }
+
+                // Step 2: Open Razorpay
+                const options = {
+                    key: 'rzp_test_APuQCp0MiHoD9M',
+                    amount: plan.price * 100, // paise
+                    currency: 'INR',
+                    name: 'Mobiqo Warranty',
+                    description: `${plan.label} Extension for ${device}`,
+                    ...(razorpayOrderId ? { order_id: razorpayOrderId } : {}),
+                    theme: { color: '#135bec' },
+                    handler: async function (response: any) {
+                        try {
+                            const durationMapping: Record<string, number> = { '1yr': 12, '2yr': 24, '3yr': 36 };
+                            const months = durationMapping[selectedPlan] || 12;
+
+                            // Update Backend DB explicitly with duration
+                            await fetch(`/api/warranties/${warranty?.id}/extend`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                                body: JSON.stringify({ duration_months: months })
+                            });
+                        } catch {
+                            console.error("Failed to update warranty backend");
+                        }
+                        setProcessing(false);
+                        setDone(true);
+                    },
+                    modal: {
+                        ondismiss: function () {
+                            setProcessing(false);
+                        }
+                    }
+                };
+
+                const rzp = new window.Razorpay(options);
+                rzp.open();
+            } else {
+                setProcessing(false);
+                alert("Authentication token not found.");
             }
-        } catch { /* ignore */ }
-        await new Promise(r => setTimeout(r, 1000));
-        setProcessing(false);
-        setDone(true);
+        } catch (err) {
+            console.error('Payment error:', err);
+            alert('Payment failed. Please try again.');
+            setProcessing(false);
+        }
     };
 
     if (done) {

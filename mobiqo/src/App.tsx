@@ -28,8 +28,10 @@ import { Orders } from './components/Orders';
 import { OrderDetails } from './components/OrderDetails';
 import { Notifications } from './components/Notifications';
 import { PrivacySecurity } from './components/PrivacySecurity';
+import { PaymentMethods } from './components/PaymentMethods';
 import { AIDeliveryLocations } from './components/AIDeliveryLocations';
-
+// --- IMPORT NEW RESET PASSWORD SCREEN ---
+import ResetPassword from './components/ResetPassword';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminUserManagement } from './components/AdminUserManagement';
 import { AdminInventory } from './components/AdminInventory';
@@ -53,17 +55,24 @@ export interface CartItem {
     quantity: number;
 }
 
+// 🚀 FIXED: Added 'reset-password' to the Page types
 type Page =
-    | 'home' | 'login' | 'register' | 'forgot-password'
+    | 'home' | 'login' | 'register' | 'forgot-password' | 'reset-password'
     | 'ai-assistant' | 'product-details' | 'cart' | 'address' | 'checkout' | 'order-confirmation'
     | 'compare' | 'compare-results'
     | 'profile' | 'orders' | 'order-details' | 'warranty' | 'warranty-register' | 'warranty-detail' | 'warranty-claim' | 'warranty-extend'
-    | 'addresses' | 'notifications' | 'privacy' | 'ai-delivery'
+    | 'addresses' | 'notifications' | 'privacy' | 'payment' | 'ai-delivery'
     | 'admin-dashboard' | 'admin-users' | 'admin-inventory' | 'admin-add-product' | 'admin-edit-product'
     | 'admin-orders' | 'admin-warranties' | 'admin-reports' | 'admin-settings';
 
 export default function App() {
-    const [page, setPage] = useState<Page>('home');
+
+    // 🚀 FIXED: Check the URL safely inside the initial state so it doesn't break React Hooks
+    const [page, setPage] = useState<Page>(() => {
+        if (window.location.pathname === '/reset-password') return 'reset-password';
+        return 'home';
+    });
+
     const [pageData, setPageData] = useState<any>(null);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [cartBounce, setCartBounce] = useState(false);
@@ -72,7 +81,6 @@ export default function App() {
     const [userEmail, setUserEmail] = useState(() => localStorage.getItem('userEmail') || '');
 
     // --- FIREBASE SILENT INIT ON APP LOAD ---
-    // If the user is already logged in when they open the website, fetch/verify their token
     useEffect(() => {
         const token = localStorage.getItem('jwt_token');
         if (token) {
@@ -94,10 +102,7 @@ export default function App() {
         setUserName(name);
         setUserEmail(email);
 
-        // --- FIREBASE TRIGGER ON LOGIN ---
-        // Ask for permission right after they log in
         requestNotificationPermission(token);
-
         navigate('home');
     };
 
@@ -121,11 +126,9 @@ export default function App() {
             return [...prev, item];
         });
 
-        // Bounce animation
         setCartBounce(true);
         setTimeout(() => setCartBounce(false), 700);
 
-        // Flying animation to cart icon
         if (sourceElement) {
             const cartBtn = document.getElementById('cart-icon-btn');
             if (cartBtn) {
@@ -168,150 +171,48 @@ export default function App() {
 
     const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-    // Pages that hide the standard Navbar + BottomNav
-    const hideNav = ['login', 'register', 'forgot-password'].includes(page);
+    // 🚀 FIXED: Added 'reset-password' to the hidden Nav array
+    const hideNav = ['login', 'register', 'forgot-password', 'reset-password'].includes(page);
     const isAdminPage = page.startsWith('admin-');
 
     const renderPage = () => {
         switch (page) {
-            case 'login':
-                return <Login onNavigate={navigate as any} onLoginSuccess={handleLoginSuccess} />;
-            case 'register':
-                return <Register onNavigate={navigate as any} onLoginSuccess={handleLoginSuccess} />;
-            case 'forgot-password':
-                return <ForgotPassword onNavigate={navigate as any} />;
-
-            case 'ai-assistant':
-                return <AIAssistant onNavigate={navigate as any} />;
-
-            case 'product-details':
-                return (
-                    <ProductDetails
-                        onNavigate={navigate as any}
-                        product={pageData}
-                        onAddToCart={handleAddToCart}
-                        onBuyNow={handleBuyNow}
-                    />
-                );
-
-            case 'cart':
-                return (
-                    <Cart
-                        onNavigate={navigate as any}
-                        cart={cart}
-                        onRemoveFromCart={handleRemoveFromCart}
-                    />
-                );
-
-            case 'address':
-                return <Address onNavigate={navigate as any} cart={cart} />;
-
-            case 'checkout':
-                return (
-                    <Checkout
-                        onNavigate={navigate as any}
-                        cart={cart}
-                        selectedAddress={pageData?.address}
-                    />
-                );
-
-            case 'order-confirmation':
-                return (
-                    <OrderConfirmation
-                        onNavigate={navigate as any}
-                        amount={pageData?.amount}
-                        paymentMethod={pageData?.paymentMethod}
-                        transactionId={pageData?.transactionId}
-                    />
-                );
-
-            case 'compare':
-                return <CompareSearch onNavigate={navigate as any} />;
-
-            case 'compare-results':
-                return <CompareResults onNavigate={navigate as any} device1Name={pageData?.device1} device2Name={pageData?.device2} />;
-
-            case 'profile':
-                return <ProfileDashboard onNavigate={navigate as any} />;
-
-            case 'orders':
-                return <Orders onNavigate={navigate as any} />;
-
-            case 'order-details':
-                return <OrderDetails onNavigate={navigate as any} order={pageData} />;
-
-            case 'warranty':
-                return (
-                    <ProfileLayout activeTab="warranty" onNavigate={navigate as any}>
-                        <WarrantyMain onNavigate={navigate as any} />
-                    </ProfileLayout>
-                );
-
-            case 'warranty-register':
-                return (
-                    <ProfileLayout activeTab="warranty" onNavigate={navigate as any}>
-                        <WarrantyRegister onNavigate={navigate as any} />
-                    </ProfileLayout>
-                );
-
-            case 'warranty-detail':
-                return (
-                    <ProfileLayout activeTab="warranty" onNavigate={navigate as any}>
-                        <WarrantyDetail onNavigate={navigate as any} warrantyId={pageData?.id ?? 0} device={pageData} />
-                    </ProfileLayout>
-                );
-
-            case 'warranty-claim':
-                return (
-                    <ProfileLayout activeTab="warranty" onNavigate={navigate as any}>
-                        <WarrantyClaim onNavigate={navigate as any} warranty={pageData} />
-                    </ProfileLayout>
-                );
-
-            case 'warranty-extend':
-                return (
-                    <ProfileLayout activeTab="warranty" onNavigate={navigate as any}>
-                        <WarrantyExtend onNavigate={navigate as any} warranty={pageData} />
-                    </ProfileLayout>
-                );
-
-            case 'addresses':
-                return (
-                    <ProfileLayout activeTab="addresses" onNavigate={navigate as any}>
-                        <Address onNavigate={navigate as any} cart={cart} />
-                    </ProfileLayout>
-                );
-
-            case 'notifications':
-                return <Notifications onNavigate={navigate as any} />;
-
-            case 'privacy':
-                return <PrivacySecurity onNavigate={navigate as any} />;
-
-            case 'ai-delivery':
-                return <AIDeliveryLocations onNavigate={navigate as any} />;
+            case 'login': return <Login onNavigate={navigate as any} onLoginSuccess={handleLoginSuccess} />;
+            case 'register': return <Register onNavigate={navigate as any} onLoginSuccess={handleLoginSuccess} />;
+            case 'forgot-password': return <ForgotPassword onNavigate={navigate as any} />;
+            case 'reset-password': return <ResetPassword />; // 🚀 FIXED: Added the Reset Password Route
+            case 'ai-assistant': return <AIAssistant onNavigate={navigate as any} />;
+            case 'product-details': return <ProductDetails onNavigate={navigate as any} product={pageData} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} />;
+            case 'cart': return <Cart onNavigate={navigate as any} cart={cart} onRemoveFromCart={handleRemoveFromCart} />;
+            case 'address': return <Address onNavigate={navigate as any} cart={cart} />;
+            case 'checkout': return <Checkout onNavigate={navigate as any} cart={cart} selectedAddress={pageData?.address} />;
+            case 'order-confirmation': return <OrderConfirmation onNavigate={navigate as any} amount={pageData?.amount} paymentMethod={pageData?.paymentMethod} transactionId={pageData?.transactionId} />;
+            case 'compare': return <CompareSearch onNavigate={navigate as any} />;
+            case 'compare-results': return <CompareResults onNavigate={navigate as any} device1Name={pageData?.device1} device2Name={pageData?.device2} />;
+            case 'profile': return <ProfileDashboard onNavigate={navigate as any} />;
+            case 'orders': return <Orders onNavigate={navigate as any} />;
+            case 'order-details': return <OrderDetails onNavigate={navigate as any} order={pageData} />;
+            case 'warranty': return <ProfileLayout activeTab="warranty" onNavigate={navigate as any}><WarrantyMain onNavigate={navigate as any} /></ProfileLayout>;
+            case 'warranty-register': return <ProfileLayout activeTab="warranty" onNavigate={navigate as any}><WarrantyRegister onNavigate={navigate as any} /></ProfileLayout>;
+            case 'warranty-detail': return <ProfileLayout activeTab="warranty" onNavigate={navigate as any}><WarrantyDetail onNavigate={navigate as any} warrantyId={pageData?.id ?? 0} device={pageData} /></ProfileLayout>;
+            case 'warranty-claim': return <ProfileLayout activeTab="warranty" onNavigate={navigate as any}><WarrantyClaim onNavigate={navigate as any} warranty={pageData} /></ProfileLayout>;
+            case 'warranty-extend': return <ProfileLayout activeTab="warranty" onNavigate={navigate as any}><WarrantyExtend onNavigate={navigate as any} warranty={pageData} /></ProfileLayout>;
+            case 'addresses': return <ProfileLayout activeTab="addresses" onNavigate={navigate as any}><Address onNavigate={navigate as any} cart={cart} /></ProfileLayout>;
+            case 'notifications': return <ProfileLayout activeTab="notifications" onNavigate={navigate as any}><Notifications onNavigate={navigate as any} /></ProfileLayout>;
+            case 'privacy': return <ProfileLayout activeTab="privacy" onNavigate={navigate as any}><PrivacySecurity onNavigate={navigate as any} /></ProfileLayout>;
+            case 'payment': return <ProfileLayout activeTab="payment" onNavigate={navigate as any}><PaymentMethods onNavigate={navigate as any} /></ProfileLayout>;
+            case 'ai-delivery': return <AIDeliveryLocations onNavigate={navigate as any} />;
 
             // Admin Pages
-            case 'admin-dashboard':
-                return <AdminDashboard onNavigate={navigate as any} />;
-            case 'admin-users':
-                return <AdminUserManagement onNavigate={navigate as any} />;
-            case 'admin-inventory':
-                return <AdminInventory onNavigate={navigate as any} />;
-            case 'admin-add-product':
-                return <AdminAddProduct onNavigate={navigate as any} />;
-            case 'admin-edit-product':
-                return <AdminEditProduct onNavigate={navigate as any} productData={pageData} />;
-            case 'admin-orders':
-                return <AdminOrders onNavigate={navigate as any} />;
-            case 'admin-warranties':
-                return <AdminWarranties onNavigate={navigate as any} />;
-            case 'admin-reports':
-                return <AdminReports onNavigate={navigate as any} />;
-            case 'admin-settings':
-                return <AdminSettings onNavigate={navigate as any} />;
-
-            // Home page (default)
+            case 'admin-dashboard': return <AdminDashboard onNavigate={navigate as any} />;
+            case 'admin-users': return <AdminUserManagement onNavigate={navigate as any} />;
+            case 'admin-inventory': return <AdminInventory onNavigate={navigate as any} />;
+            case 'admin-add-product': return <AdminAddProduct onNavigate={navigate as any} />;
+            case 'admin-edit-product': return <AdminEditProduct onNavigate={navigate as any} productData={pageData} />;
+            case 'admin-orders': return <AdminOrders onNavigate={navigate as any} />;
+            case 'admin-warranties': return <AdminWarranties onNavigate={navigate as any} />;
+            case 'admin-reports': return <AdminReports onNavigate={navigate as any} />;
+            case 'admin-settings': return <AdminSettings onNavigate={navigate as any} />;
             default:
                 return (
                     <>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getHDImage } from '../utils/imageHelper';
 
 interface WarrantyDetailData {
     id: number;
@@ -10,6 +11,7 @@ interface WarrantyDetailData {
     progress: number;
     months_left: string;
     invoice_name: string;
+    image_url?: string;
     history: { title: string; date: string; desc: string; is_last: boolean }[];
 }
 
@@ -104,11 +106,13 @@ export function WarrantyDetail({ onNavigate, warrantyId, device }: WarrantyDetai
                 {/* Device Card */}
                 <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm mb-6 page-enter">
                     <div className="flex items-center gap-5">
-                        <div className="w-20 h-20 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center shrink-0">
-                            <span className="material-symbols-outlined text-slate-300 text-4xl">
-                                {detail.device_type.toLowerCase() === 'laptop' ? 'laptop' :
-                                    detail.device_type.toLowerCase() === 'headphones' ? 'headphones' : 'smartphone'}
-                            </span>
+                        <div className="w-20 h-20 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                            <img
+                                src={getHDImage(detail.image_url, detail.device_name)}
+                                alt={detail.device_name}
+                                className="w-full h-full object-contain p-1"
+                                onError={(e) => { (e.target as HTMLImageElement).src = `https://tse1.mm.bing.net/th?q=${encodeURIComponent(detail.device_name.split('(')[0].trim() + ' smartphone')}&w=300&h=300&c=7&rs=1`; }}
+                            />
                         </div>
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">

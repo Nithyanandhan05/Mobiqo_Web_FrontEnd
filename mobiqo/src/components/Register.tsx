@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { validateName, validateEmail, validatePhone, validatePassword } from '../utils/validation';
+
+// --- STRICT REGEX RULES ---
+const NAME_REGEX = /^[A-Za-z ]+$/;
+const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@(gmail\.com|email\.com|saveetha\.com)$/;
+const PHONE_REGEX = /^[0-9]{10}$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,16}$/;
+
+const API_URL = "http://10.79.196.213:5000"; // 🚀 Mobile IP
 
 interface RegisterProps {
     onNavigate: (page: 'home' | 'login' | 'cart' | 'compare' | 'warranty', data?: any) => void;
@@ -26,11 +33,11 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
     const [otpLoading, setOtpLoading] = useState(false);
     const [otpError, setOtpError] = useState('');
 
-    // 🚀 DYNAMIC INSTANT VALIDATION (No lag, evaluates every keystroke)
-    const nameError = validateName(fullName);
-    const emailError = validateEmail(email);
-    const mobileError = validatePhone(mobile);
-    const passwordError = validatePassword(password);
+    // 🚀 DYNAMIC INSTANT VALIDATION (No lag, evaluates every render cycle)
+    const nameError = fullName.length > 0 && !NAME_REGEX.test(fullName) ? "Only alphabets and spaces allowed" : null;
+    const emailError = email.length > 0 && !EMAIL_REGEX.test(email) ? "Must be @gmail.com, @email.com, or @saveetha.com" : null;
+    const mobileError = mobile.length > 0 && !PHONE_REGEX.test(mobile) ? "Must be exactly 10 digits" : null;
+    const passwordError = password.length > 0 && !PASSWORD_REGEX.test(password) ? "8-16 chars, 1 Uppercase, 1 Lowercase, 1 Number, 1 Special Char" : null;
     const confirmError = confirmPassword.length > 0 && confirmPassword !== password ? "Passwords do not match" : null;
 
     // Check if the whole form is perfect before allowing submission
@@ -71,7 +78,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
         setLoading(true);
         try {
             // STEP 1: SEND OTP
-            const res = await fetch('http://127.0.0.1:5000/send-otp', {
+            const res = await fetch(`${API_URL}/send-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim() })
@@ -82,7 +89,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                 setShowOtpModal(true);
                 setOtpError('');
             } else {
-                setApiError(data.message || 'Failed to send OTP.');
+                setApiError(data.message || 'Failed to send OTP. Email may exist.');
             }
         } catch (err) {
             setApiError('Unable to connect to server.');
@@ -102,7 +109,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
 
         try {
             // STEP 2: VERIFY OTP
-            const verifyRes = await fetch('http://127.0.0.1:5000/verify-otp', {
+            const verifyRes = await fetch(`${API_URL}/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim(), otp: otp.trim() })
@@ -112,7 +119,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
 
             if (verifyRes.ok && verifyData.status === 'success') {
                 // STEP 3: REGISTER USER
-                const registerRes = await fetch('http://127.0.0.1:5000/register', {
+                const registerRes = await fetch(`${API_URL}/register`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ full_name: fullName.trim(), email: email.trim(), mobile: mobile.trim(), password })
@@ -122,7 +129,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
 
                 if (registerRes.ok && registerData.status === 'success') {
                     // STEP 4: AUTO LOGIN
-                    const loginRes = await fetch('http://127.0.0.1:5000/login', {
+                    const loginRes = await fetch(`${API_URL}/login`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: email.trim(), password })
@@ -151,7 +158,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
 
     return (
         <main className="flex-1 min-h-screen bg-white flex w-full">
-            {/* Left Panel - Branding (Hidden on mobile) */}
+            {/* Left Panel - Branding */}
             <div className="hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-[#4ea5f5] to-[#124cb1] w-1/2 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
                 <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-400/20 rounded-full blur-3xl -ml-20 -mb-20"></div>
@@ -160,7 +167,6 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                     <div className="w-40 h-40 mx-auto mb-8 bg-white/95 backdrop-blur-md rounded-3xl p-4 flex items-center justify-center shadow-2xl border border-white/20 page-enter">
                         <img src="/logo.png" alt="Mobiqo Logo" className="w-full h-full object-contain drop-shadow-md" />
                     </div>
-
                     <h1 className="text-4xl font-black text-white mb-4 tracking-tight drop-shadow-lg page-enter" style={{ animationDelay: '100ms' }}>Mobiqo</h1>
                     <p className="text-lg text-blue-50/90 font-medium leading-relaxed drop-shadow-md page-enter" style={{ animationDelay: '200ms' }}>
                         Join Our Enterprise Network & Secure Your Devices Today
@@ -217,7 +223,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                                 value={mobile}
                                 maxLength={10}
                                 onChange={(e) => {
-                                    // Block non-numeric typing instantly
+                                    // Block non-numeric characters instantly
                                     const val = e.target.value.replace(/[^0-9]/g, '');
                                     setMobile(val);
                                 }}
@@ -259,7 +265,6 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                                     </span>
                                 </div>
                             )}
-
                             {passwordError && <p className="text-red-500 text-xs font-bold mt-1.5 px-1">{passwordError}</p>}
                         </div>
 
@@ -302,13 +307,9 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                         <button
                             type="submit"
                             disabled={!isFormValid || loading}
-                            className="w-full mt-6 py-4 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 btn-press disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full mt-6 py-4 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {loading ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            ) : (
-                                "Register"
-                            )}
+                            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Register"}
                         </button>
                     </form>
 
@@ -362,7 +363,7 @@ export function Register({ onNavigate, onLoginSuccess }: RegisterProps) {
                         <button
                             onClick={handleVerifyOtp}
                             disabled={otpLoading || otp.length !== 6}
-                            className="w-full py-4 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-4 bg-[#1f93f6] hover:bg-[#157ad2] text-white font-bold rounded-2xl shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {otpLoading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

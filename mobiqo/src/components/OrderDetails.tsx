@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getHDImage } from '../utils/imageHelper';
+import { downloadInvoice } from '../utils/invoiceGenerator';
 
 interface OrderDetailsProps {
     onNavigate: (page: any, data?: any) => void;
@@ -8,6 +9,31 @@ interface OrderDetailsProps {
 
 export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
     const [progress, setProgress] = useState(0);
+    const [downloading, setDownloading] = useState(false);
+
+    const handleDownloadInvoice = async () => {
+        setDownloading(true);
+        const basePrice = order?.product?.price?.replace(/[\$,₹]/g, '') || '0';
+        try {
+            await downloadInvoice({
+                invoice_no: order?.invoice_no || `MDQ-${Date.now()}`,
+                order_date: order?.order_date || '',
+                customer_name: order?.customer_name || localStorage.getItem('userName') || 'Customer',
+                phone: order?.phone || '',
+                address: order?.address || '',
+                payment_method: order?.payment_method || 'Online',
+                product_name: order?.product?.name || 'Product',
+                product_image_url: order?.product?.image_url || '',
+                price: parseFloat(basePrice) || 0,
+                status: order?.status || 'Processing',
+            });
+        } catch (err) {
+            console.error('Invoice generation failed:', err);
+            alert('Failed to generate invoice. Please try again.');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -210,9 +236,15 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
                                 </div>
                             </div>
                             <div className="flex flex-col gap-3">
-                                <button className="w-full bg-[#2874f0] hover:bg-[#1a5fce] text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                                    <span className="material-symbols-outlined text-[18px]">download</span>
-                                    Download Invoice
+                                <button
+                                    onClick={handleDownloadInvoice}
+                                    disabled={downloading}
+                                    className="w-full bg-[#2874f0] hover:bg-[#1a5fce] disabled:opacity-70 disabled:cursor-wait text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">
+                                        {downloading ? 'progress_activity' : 'download'}
+                                    </span>
+                                    {downloading ? 'Generating PDF…' : 'Download Invoice'}
                                 </button>
                                 {!isDelivered && !isShipped && (
                                     <button className="w-full bg-white border border-slate-300 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 font-bold py-3 rounded-lg transition-colors">

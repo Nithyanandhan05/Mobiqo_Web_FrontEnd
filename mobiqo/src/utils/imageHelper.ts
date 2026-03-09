@@ -9,7 +9,7 @@ export function getHDImage(currentUrl: string | undefined | null, deviceName: st
     if (!currentUrl || currentUrl.includes('via.placeholder.com') || currentUrl.includes('amazon.com') || currentUrl.includes('wallpapershome.com')) {
         const cleanName = deviceName.split('(')[0].trim();
         const query = encodeURIComponent(`${cleanName} smartphone official press HD textless background`);
-        return `https://tse1.mm.bing.net/th?q=${query}&w=600&h=600&c=7&rs=1`;
+        return `https://tse1.mm.bing.net/th?q=${query}&w=900&h=900&c=1&rs=2&pid=ImgRaw`;
     }
 
     // Otherwise, we strictly trust the exact image address the Admin pasted into the system!
