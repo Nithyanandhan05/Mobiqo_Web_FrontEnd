@@ -11,9 +11,10 @@ interface CheckoutProps {
     onNavigate?: (page: 'home' | 'ai-assistant' | 'product-details' | 'cart' | 'address' | 'checkout' | 'order-confirmation', data?: any) => void;
     cart: CartItem[];
     selectedAddress?: any;
+    clearCart?: () => void;
 }
 
-export function Checkout({ onNavigate, cart, selectedAddress }: CheckoutProps) {
+export function Checkout({ onNavigate, cart, selectedAddress, clearCart }: CheckoutProps) {
     const [paymentMethod, setPaymentMethod] = useState<'razorpay' | 'cod'>('razorpay');
     const [processing, setProcessing] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(false);
@@ -123,6 +124,7 @@ export function Checkout({ onNavigate, cart, selectedAddress }: CheckoutProps) {
 
                     const txnId = response.razorpay_payment_id || 'TXN-SUCCESS';
                     setProcessing(false);
+                    if (clearCart) clearCart();
                     if (onNavigate) {
                         onNavigate('order-confirmation', {
                             amount: totalPrice,
@@ -171,6 +173,7 @@ export function Checkout({ onNavigate, cart, selectedAddress }: CheckoutProps) {
         setTimeout(() => {
             const txnId = 'COD-' + Date.now().toString(36).toUpperCase();
             setProcessing(false);
+            if (clearCart) clearCart();
             if (onNavigate) {
                 onNavigate('order-confirmation', {
                     amount: totalPrice,

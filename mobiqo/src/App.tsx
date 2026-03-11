@@ -185,7 +185,7 @@ export default function App() {
             case 'product-details': return <ProductDetails onNavigate={navigate as any} product={pageData} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} />;
             case 'cart': return <Cart onNavigate={navigate as any} cart={cart} onRemoveFromCart={handleRemoveFromCart} />;
             case 'address': return <Address onNavigate={navigate as any} cart={cart} />;
-            case 'checkout': return <Checkout onNavigate={navigate as any} cart={cart} selectedAddress={pageData?.address} />;
+            case 'checkout': return <Checkout onNavigate={navigate as any} cart={cart} selectedAddress={pageData?.address} clearCart={() => setCart([])} />;
             case 'order-confirmation': return <OrderConfirmation onNavigate={navigate as any} amount={pageData?.amount} paymentMethod={pageData?.paymentMethod} transactionId={pageData?.transactionId} />;
             case 'compare': return <CompareSearch onNavigate={navigate as any} />;
             case 'compare-results': return <CompareResults onNavigate={navigate as any} device1Name={pageData?.device1} device2Name={pageData?.device2} />;
