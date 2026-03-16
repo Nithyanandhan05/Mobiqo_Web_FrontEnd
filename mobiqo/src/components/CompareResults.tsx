@@ -39,15 +39,23 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
     const [error, setError] = useState('');
 
     useEffect(() => {
+        // 1. Create a flag to track if the component is actively on screen
+        let isMounted = true;
+
         const fetchComparison = async () => {
             setLoading(true);
             setError('');
             try {
+                // Keep the /api prefix since you set up the Vite proxy!
                 const res = await fetch('/api/compare_devices', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device1: device1Name, device2: device2Name })
                 });
+
+                // 2. If the component unmounted (or this is the ghost request), STOP HERE.
+                if (!isMounted) return;
+
                 if (res.ok) {
                     const json = await res.json();
                     if (json.status === 'success') {
@@ -61,12 +69,17 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                     setError('Server error. Please try again later.');
                 }
             } catch {
-                setError('Unable to connect to the server. Please check your connection.');
+                if (isMounted) setError('Unable to connect to the server. Please check your connection.');
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
         fetchComparison();
+
+        // 3. Cleanup function: When React runs the ghost request, it instantly unmounts the previous one.
+        return () => {
+            isMounted = false;
+        };
     }, [device1Name, device2Name]);
 
     const buildSpecSections = (): SpecSection[] => {
@@ -130,7 +143,6 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
         ];
     };
 
-    // Loading skeleton
     if (loading) {
         return (
             <main className="flex-1 bg-background-light min-h-[calc(100vh-80px)] pb-20">
@@ -157,7 +169,6 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
         );
     }
 
-    // Error state
     if (error) {
         return (
             <main className="flex-1 bg-background-light min-h-[calc(100vh-80px)] pb-20">
@@ -188,7 +199,6 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
     return (
         <main className="flex-1 bg-background-light min-h-[calc(100vh-80px)] pb-28">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-                {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
                         <button onClick={() => onNavigate && onNavigate('compare')} className="hover:text-primary transition-colors">
@@ -205,9 +215,7 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                     </button>
                 </div>
 
-                {/* Device Cards + AI Summary */}
                 <div className="grid grid-cols-3 gap-4 sm:gap-6 mb-10">
-                    {/* Device 1 Card */}
                     <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-sm text-center page-enter">
                         <div className="w-32 h-32 mx-auto mb-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-3">
                             <img src={getHDImage(device1.image_url, device1.name)} alt={device1.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-s24-ultra-5g-sm-s928-u1.jpg'; }} />
@@ -220,7 +228,6 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                         <p className="text-primary font-black text-lg">{device1.price}</p>
                     </div>
 
-                    {/* AI Analysis Card */}
                     <div className="bg-gradient-to-b from-blue-50 to-white rounded-3xl p-5 sm:p-6 border border-blue-100/50 shadow-sm flex flex-col items-center justify-center text-center page-enter" style={{ animationDelay: '100ms' }}>
                         <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-4">
                             <span className="material-symbols-outlined text-primary text-2xl">auto_awesome</span>
@@ -233,7 +240,6 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                         </div>
                     </div>
 
-                    {/* Device 2 Card */}
                     <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-sm text-center page-enter" style={{ animationDelay: '200ms' }}>
                         <div className="w-32 h-32 mx-auto mb-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center p-3">
                             <img src={getHDImage(device2.image_url, device2.name)} alt={device2.name} className="w-full h-full object-contain" onError={(e) => { (e.target as HTMLImageElement).src = 'https://fdn2.gsmarena.com/vv/bigpic/samsung-galaxy-s24-ultra-5g-sm-s928-u1.jpg'; }} />
@@ -247,15 +253,12 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                     </div>
                 </div>
 
-                {/* Specification Comparison Table */}
                 {specSections.map((section, sIdx) => (
                     <div key={sIdx} className="mb-2">
-                        {/* Section Header */}
                         <div className="px-2 py-3 border-b border-slate-200">
                             <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{section.title}</h3>
                         </div>
 
-                        {/* Rows */}
                         {section.rows.map((row, rIdx) => (
                             <div
                                 key={rIdx}
@@ -269,9 +272,7 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                     </div>
                 ))}
 
-                {/* Pros & Cons */}
                 <div className="grid grid-cols-2 gap-6 mt-8 mb-8">
-                    {/* Device 1 Pros & Cons */}
                     <div className="space-y-4">
                         <div className="bg-emerald-50/60 rounded-2xl p-5 border border-emerald-100/50">
                             <div className="flex items-center gap-2 mb-3">
@@ -303,7 +304,6 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                         </div>
                     </div>
 
-                    {/* Device 2 Pros & Cons */}
                     <div className="space-y-4">
                         <div className="bg-emerald-50/60 rounded-2xl p-5 border border-emerald-100/50">
                             <div className="flex items-center gap-2 mb-3">
@@ -336,13 +336,11 @@ export function CompareResults({ onNavigate, device1Name, device2Name }: Compare
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="text-center py-6 text-xs text-slate-400 font-medium border-t border-slate-100">
                     © 2026 Mobiqo. Expert Comparison Dashboard.
                 </div>
             </div>
 
-            {/* Bottom Action Bar */}
             <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl shadow-black/10">
                 <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-center gap-4 flex-wrap">
                     <button onClick={() => onNavigate && onNavigate('product-details', { name: device1.name, image: getHDImage(device1.image_url, device1.name) })} className="px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors btn-press">

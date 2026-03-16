@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { validateEmail } from '../utils/validation';
+
+// --- STRICT REGEX ---
+const EMAIL_REGEX = /^[A-Za-z0-9._%+-]+@(gmail\.com|email\.com|saveetha\.com)$/;
+
+// 🚀 THE FIX: Use localhost/127.0.0.1 for local web development so it never breaks when Wi-Fi changes!
+// (Change this back to your Wi-Fi IP only if you are testing on a real mobile phone)
+const API_URL = "http://127.0.0.1:5000";
 
 interface LoginProps {
     onNavigate: (page: 'home' | 'register' | 'cart' | 'compare' | 'warranty' | 'forgot-password', data?: any) => void;
@@ -9,30 +15,32 @@ interface LoginProps {
 export function Login({ onNavigate, onLoginSuccess }: LoginProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false); // Toggle visibility
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const [apiError, setApiError] = useState('');
 
-    // 🚀 DYNAMIC VALIDATION (No state lag)
-    const emailError = validateEmail(email);
+    // 🚀 DYNAMIC INSTANT VALIDATION (No state lag)
+    const emailError = email.length > 0 && !EMAIL_REGEX.test(email)
+        ? "Must be @gmail.com, @email.com, or @saveetha.com"
+        : null;
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
+        setApiError('');
 
         if (!email || !password) {
-            setError('Please fill in both email and password.');
+            setApiError('Please fill in both email and password.');
             return;
         }
 
         if (emailError) {
-            setError('Please fix the validation errors before submitting.');
+            setApiError('Please fix the validation errors before submitting.');
             return;
         }
 
         setLoading(true);
         try {
-            const res = await fetch('/api/login', {
+            const res = await fetch(`${API_URL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim(), password: password.trim() })
@@ -42,10 +50,10 @@ export function Login({ onNavigate, onLoginSuccess }: LoginProps) {
             if (res.ok && data.status === 'success') {
                 onLoginSuccess(data.token, data.user_name, email);
             } else {
-                setError(data.message || 'Invalid credentials.');
+                setApiError(data.message || 'Invalid credentials.');
             }
         } catch (err) {
-            setError('Unable to connect to server.');
+            setApiError('Unable to connect to server. Please check if your backend is running.');
         } finally {
             setLoading(false);
         }
@@ -70,15 +78,30 @@ export function Login({ onNavigate, onLoginSuccess }: LoginProps) {
             </div>
 
             {/* Right Panel - Login Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
                 <div className="w-full max-w-md">
+
+                    {/* College Logos Row */}
+                    <div className="flex justify-between items-start w-full mb-10">
+                        <img
+                            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRQzSASJ8CW7h0pmb79FrMdRMp73kQ96SnFPg&s"
+                            alt="College Logo Left"
+                            className="h-14 sm:h-16 w-auto object-contain"
+                        />
+                        <img
+                            src="https://simatscgpa.netlify.app/logo2.png"
+                            alt="College Logo Right"
+                            className="h-14 sm:h-16 w-auto object-contain"
+                        />
+                    </div>
+
                     <h2 className="text-3xl font-black text-slate-900 mb-2">Welcome Back</h2>
                     <p className="text-slate-500 font-medium mb-8">Sign in to manage your warranties and devices.</p>
 
-                    {error && (
+                    {apiError && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-600 text-sm font-bold">
                             <span className="material-symbols-outlined text-lg">error</span>
-                            {error}
+                            {apiError}
                         </div>
                     )}
 

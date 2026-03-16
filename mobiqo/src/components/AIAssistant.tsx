@@ -7,11 +7,18 @@ interface AIAssistantProps {
 
 export function AIAssistant({ onNavigate }: AIAssistantProps) {
     const [step, setStep] = useState<number>(1);
-    const [selectedBudget, setSelectedBudget] = useState<string>('Mid-Range');
-    const [selectedUseCase, setSelectedUseCase] = useState<string>('Gaming');
-    const [selectedBrand, setSelectedBrand] = useState<string>('Any');
 
-    // Step 4 state
+    // Step 1: Budget
+    const [selectedBudget, setSelectedBudget] = useState<string>('Mid-Range');
+    const [customBudget, setCustomBudget] = useState<string>(''); // 🚀 NEW: Custom Budget State
+
+    // Step 2: Usage
+    const [selectedUseCase, setSelectedUseCase] = useState<string>('Gaming');
+
+    // Step 3: Brand
+    const [selectedBrands, setSelectedBrands] = useState<string[]>([]); // 🚀 NEW: Array for multiple brands
+
+    // Step 4: Final Details
     const [selectedStorage, setSelectedStorage] = useState<string>('128GB');
     const [selectedBattery, setSelectedBattery] = useState<string>('Standard');
     const [specificFeatures, setSpecificFeatures] = useState<string>('');
@@ -84,24 +91,48 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
         }
     };
 
+    // 🚀 NEW: Function to handle multiple brand toggling
+    const handleBrandToggle = (brand: string) => {
+        if (brand === 'Any') {
+            setSelectedBrands([]);
+            return;
+        }
+        setSelectedBrands(prev =>
+            prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]
+        );
+    };
+
     const handleGenerate = async () => {
         setIsGenerating(true);
         setStep(5);
         try {
+            // 🚀 Determine final budget (Custom vs Preset)
             let budgetNum = 30000;
-            switch (selectedBudget) {
-                case 'Value': budgetNum = 15000; break;
-                case 'Mid-Range': budgetNum = 35000; break;
-                case 'Premium': budgetNum = 70000; break;
-                case 'Flagship': budgetNum = 150000; break;
+            if (customBudget && !isNaN(Number(customBudget))) {
+                budgetNum = Number(customBudget);
+            } else {
+                switch (selectedBudget) {
+                    case 'Value': budgetNum = 15000; break;
+                    case 'Mid-Range': budgetNum = 35000; break;
+                    case 'Premium': budgetNum = 70000; break;
+                    case 'Flagship': budgetNum = 150000; break;
+                }
             }
 
+            // 🚀 Format multiple brands into a comma-separated string
+            const brandString = selectedBrands.length > 0 ? selectedBrands.join(', ') : 'Any';
+
+            // 🚀 Send ALL data (including step 4) to the backend
             const response = await fetch('/api/recommend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     budget: budgetNum,
-                    brand: selectedBrand
+                    brand: brandString,
+                    usage: selectedUseCase,
+                    storage: selectedStorage,
+                    battery: selectedBattery,
+                    notes: specificFeatures
                 })
             });
             const data = await response.json();
@@ -167,55 +198,76 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                             <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4">
                                 {step === 1 && "What's your target budget?"}
                                 {step === 2 && "How will you use your new device?"}
-                                {step === 3 && "Select Your Preferred Brand"}
+                                {step === 3 && "Select Your Preferred Brands"}
                                 {step === 4 && "Final Details"}
                             </h1>
                             <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
-                                {step === 1 && "Select a range that fits your financial comfort zone. We'll find the best performance-per-rupee deals for you."}
+                                {step === 1 && "Select a range or enter a specific amount below."}
                                 {step === 2 && "Select your primary use case for personalized AI recommendations."}
-                                {step === 3 && "Choose a brand you love or select \"Any\" for unbiased AI recommendations tailored to your technical needs."}
+                                {step === 3 && "Choose multiple brands you love or select \"Any\"."}
                                 {step === 4 && "Fine-tune your requirements to get the perfect recommendation."}
                             </p>
                         </div>
 
                         {/* Options Grid */}
                         {step === 1 && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-10 sm:mb-16">
-                                {budgets.map((budget) => {
-                                    const isSelected = selectedBudget === budget.id;
-                                    return (
-                                        <div
-                                            key={budget.id}
-                                            onClick={() => setSelectedBudget(budget.id)}
-                                            className={`relative rounded-2xl p-6 cursor-pointer border-2 transition-all ${isSelected
-                                                ? 'bg-primary border-primary text-white shadow-xl shadow-primary/30 transform scale-105'
-                                                : 'bg-white border-slate-100 text-slate-900 hover:border-slate-300 hover:shadow-md'
-                                                }`}
-                                        >
-                                            {budget.popular && (
-                                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-primary text-[10px] font-black px-3 py-1 rounded-full shadow-sm border border-slate-100 tracking-wider">
-                                                    MOST POPULAR
-                                                </div>
-                                            )}
-                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 transition-colors ${isSelected ? 'bg-white/20' : 'bg-slate-100'
-                                                }`}>
-                                                <span className={`material-symbols-outlined font-variation-fill text-2xl ${isSelected ? 'text-white' : 'text-slate-600'
+                            <div className="max-w-4xl mx-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                                    {budgets.map((budget) => {
+                                        // Selected if it matches and no custom budget is typed
+                                        const isSelected = selectedBudget === budget.id && customBudget === '';
+                                        return (
+                                            <div
+                                                key={budget.id}
+                                                onClick={() => {
+                                                    setSelectedBudget(budget.id);
+                                                    setCustomBudget(''); // Clear custom budget on click
+                                                }}
+                                                className={`relative rounded-2xl p-6 cursor-pointer border-2 transition-all ${isSelected
+                                                    ? 'bg-primary border-primary text-white shadow-xl shadow-primary/30 transform scale-105'
+                                                    : 'bg-white border-slate-100 text-slate-900 hover:border-slate-300 hover:shadow-md'
+                                                    }`}
+                                            >
+                                                {budget.popular && (
+                                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-white text-primary text-[10px] font-black px-3 py-1 rounded-full shadow-sm border border-slate-100 tracking-wider">
+                                                        MOST POPULAR
+                                                    </div>
+                                                )}
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 transition-colors ${isSelected ? 'bg-white/20' : 'bg-slate-100'
                                                     }`}>
-                                                    {budget.icon}
-                                                </span>
+                                                    <span className={`material-symbols-outlined font-variation-fill text-2xl ${isSelected ? 'text-white' : 'text-slate-600'
+                                                        }`}>
+                                                        {budget.icon}
+                                                    </span>
+                                                </div>
+                                                <h3 className={`font-bold text-xl mb-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                                                    {budget.title}
+                                                </h3>
+                                                <div className={`text-lg font-medium mb-4 ${isSelected ? 'text-white' : 'text-primary'}`}>
+                                                    {budget.price}
+                                                </div>
+                                                <p className={`text-sm leading-relaxed ${isSelected ? 'text-primary-50 text-white/90' : 'text-slate-500'}`}>
+                                                    {budget.desc}
+                                                </p>
                                             </div>
-                                            <h3 className={`font-bold text-xl mb-1 ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                                                {budget.title}
-                                            </h3>
-                                            <div className={`text-lg font-medium mb-4 ${isSelected ? 'text-white' : 'text-primary'}`}>
-                                                {budget.price}
-                                            </div>
-                                            <p className={`text-sm leading-relaxed ${isSelected ? 'text-primary-50 text-white/90' : 'text-slate-500'}`}>
-                                                {budget.desc}
-                                            </p>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
+
+                                {/* 🚀 NEW: Custom Budget Input */}
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Or enter custom budget (₹)</label>
+                                    <input
+                                        type="number"
+                                        value={customBudget}
+                                        onChange={(e) => {
+                                            setCustomBudget(e.target.value);
+                                            setSelectedBudget(''); // Clear standard selection
+                                        }}
+                                        placeholder="e.g. 25000"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -255,11 +307,12 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                         {step === 3 && (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 mb-10 sm:mb-16 max-w-5xl mx-auto">
                                 {brands.map((brand) => {
-                                    const isSelected = selectedBrand === brand;
+                                    // 🚀 NEW: Multi-select highlight logic
+                                    const isSelected = selectedBrands.includes(brand) || (brand === 'Any' && selectedBrands.length === 0);
                                     return (
                                         <div
                                             key={brand}
-                                            onClick={() => setSelectedBrand(brand)}
+                                            onClick={() => handleBrandToggle(brand)}
                                             className={`relative rounded-2xl py-6 px-4 sm:py-8 sm:px-6 cursor-pointer border-2 transition-all flex items-center justify-center text-center ${isSelected
                                                 ? 'bg-primary border-primary text-white shadow-xl shadow-primary/30 transform scale-105'
                                                 : 'bg-white border-slate-100 text-slate-900 hover:border-slate-300 hover:shadow-md'
@@ -282,8 +335,8 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                         {step === 4 && (
                             <div className="max-w-2xl mx-auto space-y-8 mb-10 sm:mb-16">
                                 {/* Storage */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 text-slate-900 font-bold mb-3">
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="flex items-center gap-2 text-slate-900 font-bold mb-4">
                                         <span className="material-symbols-outlined text-primary text-xl">dns</span>
                                         <h3>Minimum Storage</h3>
                                     </div>
@@ -292,9 +345,9 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                                             <button
                                                 key={storage}
                                                 onClick={() => setSelectedStorage(storage)}
-                                                className={`px-6 py-3 rounded-xl font-bold transition-all border-2 ${selectedStorage === storage
+                                                className={`px-6 py-3 rounded-xl font-bold transition-all border-2 flex-1 ${selectedStorage === storage
                                                     ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
-                                                    : 'bg-white border-slate-100 text-slate-700 hover:border-slate-300'
+                                                    : 'bg-slate-50 border-slate-100 text-slate-700 hover:border-slate-300 hover:bg-white'
                                                     }`}
                                             >
                                                 {storage}
@@ -304,43 +357,47 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                                 </div>
 
                                 {/* Battery Life */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 text-slate-900 font-bold mb-3">
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="flex items-center gap-2 text-slate-900 font-bold mb-4">
                                         <span className="material-symbols-outlined text-primary text-xl">battery_charging_full</span>
-                                        <h3>Battery Life</h3>
+                                        <h3>Battery Preference</h3>
                                     </div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {['Standard', 'Massive'].map((battery) => (
+                                    <div className="flex flex-wrap gap-3 sm:gap-4">
+                                        {[
+                                            { type: 'Standard', icon: 'battery_std' },
+                                            { type: 'Massive', icon: 'battery_full' }
+                                        ].map((batt) => (
                                             <button
-                                                key={battery}
-                                                onClick={() => setSelectedBattery(battery)}
-                                                className={`flex items-center justify-center gap-3 py-6 px-4 rounded-2xl font-bold transition-all border-2 ${selectedBattery === battery
-                                                    ? 'border-primary bg-primary/5 text-primary'
-                                                    : 'border-white bg-slate-50 text-slate-700 hover:border-slate-200 hover:bg-white hover:shadow-sm'
+                                                key={batt.type}
+                                                onClick={() => setSelectedBattery(batt.type)}
+                                                className={`flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-bold transition-all border-2 flex-1 ${selectedBattery === batt.type
+                                                    ? 'bg-blue-50 border-primary text-primary'
+                                                    : 'bg-slate-50 border-slate-100 text-slate-700 hover:border-slate-300 hover:bg-white'
                                                     }`}
                                             >
-                                                <span className={`material-symbols-outlined text-2xl ${selectedBattery === battery ? 'text-primary' : 'text-slate-400'}`}>
-                                                    {battery === 'Standard' ? 'battery_std' : 'battery_full'}
-                                                </span>
-                                                {battery}
+                                                <span className="material-symbols-outlined">{batt.icon}</span>
+                                                {batt.type}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
 
                                 {/* Specific Features */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2 text-slate-900 font-bold mb-3">
-                                        <span className="material-symbols-outlined text-primary text-xl">tune</span>
-                                        <h3>Specific Features <span className="text-slate-400 font-medium text-sm">(Optional)</span></h3>
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2 text-slate-900 font-bold">
+                                            <span className="material-symbols-outlined text-primary text-xl">tune</span>
+                                            <h3>Specific Features</h3>
+                                        </div>
+                                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Optional</span>
                                     </div>
                                     <div className="relative">
                                         <span className="material-symbols-outlined absolute top-4 left-4 text-slate-400">edit</span>
                                         <textarea
                                             value={specificFeatures}
                                             onChange={(e) => setSpecificFeatures(e.target.value)}
-                                            placeholder="E.g. Headphone jack, flat display, good for selfies..."
-                                            className="w-full h-32 bg-white border border-slate-200 rounded-2xl p-4 pl-12 text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none placeholder:text-slate-400"
+                                            placeholder="E.g. Headphone jack, flat display, good for selfies, wireless charging..."
+                                            className="w-full h-32 bg-slate-50 border border-slate-200 rounded-2xl p-4 pl-12 text-slate-700 font-medium focus:outline-none focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all resize-none placeholder:text-slate-400 placeholder:font-normal"
                                         />
                                     </div>
                                 </div>
@@ -348,32 +405,24 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                         )}
 
                         {/* Actions */}
-                        {step < 4 ? (
-                            <div className="flex flex-col items-center gap-5 w-full max-w-md mx-auto sm:max-w-none">
+                        <div className="max-w-2xl mx-auto border-t border-slate-200 pt-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+                            <button
+                                onClick={handleBack}
+                                className="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold sm:w-auto w-full order-2 sm:order-1"
+                            >
+                                <span className="material-symbols-outlined">chevron_left</span>
+                                {step === 1 ? 'Cancel' : 'Back'}
+                            </button>
+
+                            {step < 4 ? (
                                 <button
                                     onClick={handleNext}
-                                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-10 py-4 rounded-full font-bold shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all text-lg"
+                                    className="flex items-center justify-center gap-2 bg-primary text-white px-10 py-4 rounded-xl font-bold shadow-lg shadow-primary/30 w-full sm:w-auto order-1 sm:order-2 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all"
                                 >
-                                    Next
+                                    Next Step
                                     <span className="material-symbols-outlined">arrow_forward</span>
                                 </button>
-                                <button
-                                    onClick={handleBack}
-                                    className="w-full sm:w-auto flex items-center justify-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium"
-                                >
-                                    <span className="material-symbols-outlined text-[18px]">undo</span>
-                                    Go Back
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="max-w-2xl mx-auto border-t border-slate-200 pt-8 flex flex-col sm:flex-row items-center justify-between gap-6">
-                                <button
-                                    onClick={handleBack}
-                                    className="flex items-center justify-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold sm:w-auto w-full order-2 sm:order-1"
-                                >
-                                    <span className="material-symbols-outlined">chevron_left</span>
-                                    Back
-                                </button>
+                            ) : (
                                 <button
                                     onClick={handleGenerate}
                                     disabled={isGenerating}
@@ -382,8 +431,8 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                                     {isGenerating ? 'Analyzing Requirements...' : 'Generate Recommendations'}
                                     {!isGenerating && <span className="material-symbols-outlined">auto_awesome</span>}
                                 </button>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </>
                 ) : (
                     <>

@@ -55,6 +55,8 @@ export function Footer() {
                     </ul>
                 </div>
             </div>
+
+            {/* Copyright and Links Row */}
             <div className="max-w-7xl mx-auto px-6 pt-10 border-t border-slate-100 dark:border-slate-900 flex flex-col md:flex-row justify-between items-center gap-6">
                 <p className="text-sm text-slate-500">© {new Date().getFullYear()} Mobiqo. All rights reserved.</p>
                 <div className="flex gap-8 text-sm text-slate-400">
@@ -62,6 +64,13 @@ export function Footer() {
                     <a className="hover:text-slate-600" href="#">Privacy Policy</a>
                     <a className="hover:text-slate-600" href="#">Cookies</a>
                 </div>
+            </div>
+
+            {/* 🚀 ADDED: Powered by Text */}
+            <div className="mt-8 text-center">
+                <p className="text-xs font-extrabold text-slate-400 tracking-wide uppercase">
+                    Powered by SIMATS Engineering
+                </p>
             </div>
         </footer>
     );
