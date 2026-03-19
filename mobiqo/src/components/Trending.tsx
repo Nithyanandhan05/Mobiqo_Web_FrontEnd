@@ -72,9 +72,6 @@ export function Trending({ onNavigate, onAddToCart }: TrendingProps) {
                     <h2 className="text-3xl font-black tracking-tight">Trending Devices</h2>
                     <p className="text-slate-500">Popular tech picked by our AI for you today.</p>
                 </div>
-                <button className="flex items-center gap-2 text-primary font-bold hover:underline self-start sm:self-auto">
-                    View all catalog <span className="material-symbols-outlined">trending_flat</span>
-                </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">

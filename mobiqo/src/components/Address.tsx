@@ -63,15 +63,6 @@ export function Address({ onNavigate, cart: _cart }: AddressProps) {
                     address_line: '30 Rajan Nagar Orikkai, Kanchipuram - 631502',
                     is_default: true
                 },
-                {
-                    id: 2,
-                    full_name: 'Office',
-                    mobile: '9363441126',
-                    pincode: '631502',
-                    city: 'Kanchipuram',
-                    address_line: 'Mobiqo Tech Park, Floor 4, Suite 402, Kanchipuram',
-                    is_default: false
-                }
             ]);
             setSelectedId(1);
         } catch {
