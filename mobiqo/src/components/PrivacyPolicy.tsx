@@ -47,7 +47,7 @@ export function PrivacyPolicy({ onNavigate }: PrivacyPolicyProps) {
 
                 <h2 className="text-xl font-bold text-slate-800 mb-4">5. Contact Us</h2>
                 <p className="text-slate-600 mb-6 leading-relaxed">
-                    If you have any questions about this Privacy Policy or how we handle your data, please contact our privacy team at <strong>support@[YourCompanyEmail].com</strong>.
+                    If you have any questions about this Privacy Policy or how we handle your data, please contact our privacy team at <strong>mobiqoapp.com</strong>.
                 </p>
             </div>
         </div>
