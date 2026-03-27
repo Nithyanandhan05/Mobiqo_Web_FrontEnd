@@ -6,8 +6,21 @@ import { getHDImage } from '../utils/imageHelper';
 interface Product {
     id: number;
     name: string;
-    price: string;
+    price: string | number;
     image_url: string;
+}
+
+// Helper function to mimic Java/Kotlin's String.hashCode()
+// This ensures the React web app generates the exact same fallback price as the Android app!
+function getHashCode(str: string): number {
+    let hash = 0;
+    if (str.length === 0) return hash;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
 }
 
 export function Dashboard() {
@@ -20,14 +33,31 @@ export function Dashboard() {
 
     // Fetch initial products
     useEffect(() => {
+        let isMounted = true;
+        
         fetch('/api/products')
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'success') {
-                    setProducts(data.products || []);
+                if (isMounted && data.status === 'success') {
+                    const allProducts: Product[] = data.products || [];
+                    
+                    // Filter out invalid names and remove duplicates
+                    const uniqueProducts: Product[] = [];
+                    const seenNames = new Set<string>();
+                    
+                    allProducts.forEach(p => {
+                        if (p.name && !p.name.toLowerCase().includes("unknown") && !seenNames.has(p.name)) {
+                            seenNames.add(p.name);
+                            uniqueProducts.push(p);
+                        }
+                    });
+                    
+                    setProducts(uniqueProducts);
                 }
             })
             .catch(err => console.error("Error fetching Top Picks:", err));
+            
+        return () => { isMounted = false; };
     }, []);
 
     const handleAiSearch = async (e: React.FormEvent) => {
@@ -50,6 +80,7 @@ export function Dashboard() {
             });
             const data = await res.json();
             console.log("AI Result:", data);
+            
             // In a real app we'd show this in a modal or navigate.
             alert(`AI Recommends: ${data.data?.top_match?.name || 'Error'}`);
         } catch (err) {
@@ -126,24 +157,42 @@ export function Dashboard() {
                 <h3 className="section-title">AI Top Picks for You</h3>
 
                 <div className="product-grid">
-                    {products.map(product => (
-                        <div key={product.id} className="product-card">
-                            <div className="match-badge">99% Match</div>
-                            <div className="product-img-wrapper">
-                                <img
-                                    src={getHDImage(product.image_url, product.name)}
-                                    alt={product.name}
-                                    className="product-img"
-                                    onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(product.name) + '&background=random';
-                                    }}
-                                />
+                    {products.map(product => {
+                        // --- DYNAMIC PRICE FALLBACK LOGIC ---
+                        const rawPriceStr = String(product.price || "0");
+                        const cleanRaw = rawPriceStr.split(".")[0].replace(/[^0-9]/g, "");
+                        let parsedPrice = parseInt(cleanRaw, 10);
+                        if (isNaN(parsedPrice)) parsedPrice = 0;
+
+                        let displayPrice = parsedPrice;
+                        // If price is 0, generate consistent price between 10k and 50k
+                        if (parsedPrice <= 0 && product.name) {
+                            displayPrice = 10000 + (getHashCode(product.name) % 40000);
+                        }
+
+                        // Format to Indian Rupee standard (e.g., 25,999)
+                        const formattedPrice = new Intl.NumberFormat('en-IN').format(displayPrice);
+
+                        return (
+                            <div key={product.id} className="product-card">
+                                <div className="match-badge">99% Match</div>
+                                <div className="product-img-wrapper">
+                                    <img
+                                        src={getHDImage(product.image_url, product.name)}
+                                        alt={product.name}
+                                        className="product-img"
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(product.name) + '&background=random';
+                                        }}
+                                    />
+                                </div>
+                                {/* UNCOMMENTED AND FIXED TEXT RENDERING */}
+                                <h4 className="card-title">{product.name}</h4>
+                                <p className="card-price">₹{formattedPrice}</p>
                             </div>
-                            {/* <h4 className="card-title">{product.name}</h4>
-              <p className="card-price">₹{product.price}</p> */}
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {/* Fallback mock data if DB is empty */}
                     {products.length === 0 && (

@@ -10,6 +10,20 @@ interface OrderDetailsProps {
 export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
     const [progress, setProgress] = useState(0);
     const [downloading, setDownloading] = useState(false);
+    
+    // Local Status state for immediate UI feedback
+    const [localStatus, setLocalStatus] = useState(order?.status || 'Processing');
+    const [isCancelling, setIsCancelling] = useState(false);
+
+    // Computed flags based on local status
+    const currentStatusStr = localStatus.toLowerCase();
+    const isCancelled = currentStatusStr.includes('cancel');
+    const isDelivered = currentStatusStr.includes('delivered');
+    const isShipped = currentStatusStr.includes('shipped') || isDelivered;
+    const isOutForDelivery = currentStatusStr.includes('out for delivery') || isDelivered;
+
+    // 🚀 NEW: Foolproof check to ensure the Cancel button shows up!
+    const canCancel = !isDelivered && !isShipped && !isCancelled && !currentStatusStr.includes('refund');
 
     const handleDownloadInvoice = async () => {
         setDownloading(true);
@@ -25,7 +39,7 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
                 product_name: order?.product?.name || 'Product',
                 product_image_url: order?.product?.image_url || '',
                 price: parseFloat(basePrice) || 0,
-                status: order?.status || 'Processing',
+                status: localStatus,
             });
         } catch (err) {
             console.error('Invoice generation failed:', err);
@@ -35,13 +49,41 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
         }
     };
 
+    // Handle API Cancellation Call
+    const handleCancelOrder = async () => {
+        if (!window.confirm("Are you sure you want to cancel this order?")) return;
+        setIsCancelling(true);
+        try {
+            // Grab the correct token key from localStorage
+            const token = localStorage.getItem('jwt_token'); 
+            const orderId = order?.id || order?.order_id;
+            
+            const response = await fetch(`/api/cancel_order/${orderId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    // Ensure the Authorization header is always formatted correctly
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                setLocalStatus('Cancelled');
+                alert("Order cancelled successfully.");
+            } else {
+                alert(data.message || "Failed to cancel order.");
+            }
+        } catch (error) {
+            console.error("Cancel order error:", error);
+            alert("An error occurred while cancelling the order.");
+        } finally {
+            setIsCancelling(false);
+        }
+    };
+
     useEffect(() => {
         window.scrollTo(0, 0);
     }, []);
-
-    const isDelivered = order?.status?.toLowerCase().includes('delivered');
-    const isShipped = order?.status?.toLowerCase().includes('shipped') || isDelivered;
-    const isOutForDelivery = order?.status?.toLowerCase().includes('out for delivery') || isDelivered;
 
     const basePrice = order?.product?.price?.replace(/[\$,₹]/g, '') || '0';
     const numPrice = parseFloat(basePrice);
@@ -54,19 +96,16 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
         { label: 'Delivered' }
     ];
 
-    // Ordered = 0%, Shipped = 33.3%, Out for delivery = 66.6%, Delivered = 100%
     const activeIndex = isDelivered ? 3 : isOutForDelivery ? 2 : isShipped ? 1 : 0;
     const targetProgress = activeIndex * 33.33;
 
     useEffect(() => {
-        // Trigger the animation slightly after component mount
         const timer = setTimeout(() => {
             setProgress(targetProgress);
         }, 150);
         return () => clearTimeout(timer);
     }, [targetProgress]);
 
-    // Formatting date
     const formatDate = (dateString: string) => {
         if (!dateString) return '';
         const date = new Date(dateString);
@@ -100,54 +139,53 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
                         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
                             <div className="flex justify-between items-start mb-10">
                                 <div>
-                                    <h2 className="text-2xl font-bold text-slate-900 capitalize mb-1">{order?.status || 'Processing'}</h2>
+                                    <h2 className={`text-2xl font-bold capitalize mb-1 ${isCancelled ? 'text-red-600' : 'text-slate-900'}`}>
+                                        {localStatus}
+                                    </h2>
                                     <p className="text-sm text-slate-500">
-                                        {isDelivered ? "Your package has been delivered successfully!" : "Your order is being processed and will be shipped soon."}
+                                        {isCancelled ? "This order has been cancelled and will not be shipped." :
+                                         isDelivered ? "Your package has been delivered successfully!" : 
+                                         "Your order is being processed and will be shipped soon."}
                                     </p>
                                 </div>
                             </div>
 
-                            {/* Amazon/Flipkart Style Timeline */}
-                            <div className="mt-8 mb-4 relative px-2 sm:px-6">
-                                {/* Track Background */}
-                                <div className="absolute top-[15px] left-10 right-10 h-1.5 bg-slate-200 rounded-full z-0">
-                                    {/* Animated Progress Bar */}
-                                    <div
-                                        className="h-full bg-[#primary] transition-all duration-1000 ease-out rounded-full shadow-[0_0_8px_rgba(40,116,240,0.5)]"
-                                        style={{ width: `${progress}%`, backgroundColor: '#2874f0' }}
-                                    ></div>
-                                </div>
+                            {/* HIDE TIMELINE IF CANCELLED */}
+                            {!isCancelled && (
+                                <div className="mt-8 mb-4 relative px-2 sm:px-6">
+                                    <div className="absolute top-[15px] left-10 right-10 h-1.5 bg-slate-200 rounded-full z-0">
+                                        <div
+                                            className="h-full bg-[#primary] transition-all duration-1000 ease-out rounded-full shadow-[0_0_8px_rgba(40,116,240,0.5)]"
+                                            style={{ width: `${progress}%`, backgroundColor: '#2874f0' }}
+                                        ></div>
+                                    </div>
 
-                                <div className="flex justify-between relative z-10">
-                                    {steps.map((step, idx) => {
-                                        // The point on the line this node represents (0%, 33.33%, 66.66%, 100%)
-                                        const requiredProgress = idx * 33.33;
-                                        // Node is reached when the animated progress bar reaches it
-                                        const isReached = progress >= requiredProgress - 1;
+                                    <div className="flex justify-between relative z-10">
+                                        {steps.map((step, idx) => {
+                                            const requiredProgress = idx * 33.33;
+                                            const isReached = progress >= requiredProgress - 1;
 
-                                        return (
-                                            <div key={idx} className="flex flex-col items-center gap-2 w-16 sm:w-20">
-                                                {/* Node Icon */}
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 delay-[100ms] ${isReached
-                                                    ? 'bg-[#2874f0] text-white border-[3px] border-white shadow-md'
-                                                    : 'bg-white text-slate-300 border-[3px] border-slate-200'
-                                                    }`}>
-                                                    {isReached ? (
-                                                        <span className="material-symbols-outlined text-[16px] font-black">check</span>
-                                                    ) : (
-                                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-200 hidden"></div>
-                                                    )}
+                                            return (
+                                                <div key={idx} className="flex flex-col items-center gap-2 w-16 sm:w-20">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 delay-[100ms] ${isReached
+                                                        ? 'bg-[#2874f0] text-white border-[3px] border-white shadow-md'
+                                                        : 'bg-white text-slate-300 border-[3px] border-slate-200'
+                                                        }`}>
+                                                        {isReached ? (
+                                                            <span className="material-symbols-outlined text-[16px] font-black">check</span>
+                                                        ) : (
+                                                            <div className="w-2.5 h-2.5 rounded-full bg-slate-200 hidden"></div>
+                                                        )}
+                                                    </div>
+                                                    <span className={`text-[11px] sm:text-xs text-center font-bold tracking-tight transition-colors duration-500 delay-[100ms] ${isReached ? 'text-slate-800' : 'text-slate-400'}`}>
+                                                        {step.label}
+                                                    </span>
                                                 </div>
-                                                {/* Node Label */}
-                                                <span className={`text-[11px] sm:text-xs text-center font-bold tracking-tight transition-colors duration-500 delay-[100ms] ${isReached ? 'text-slate-800' : 'text-slate-400'
-                                                    }`}>
-                                                    {step.label}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Item Details Card */}
@@ -160,17 +198,17 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
                                     <img
                                         src={getHDImage(order?.product?.image_url, order?.product?.name)}
                                         alt={order?.product?.name}
-                                        className="max-h-full max-w-full object-contain mix-blend-multiply"
+                                        className={`max-h-full max-w-full object-contain mix-blend-multiply ${isCancelled ? 'opacity-50 grayscale' : ''}`}
                                         onError={(e: any) => { if (!e.target.src.includes('bing.net')) e.target.src = 'https://cdn-icons-png.flaticon.com/512/330/330714.png'; }}
                                     />
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex justify-between items-start gap-4">
-                                        <h4 className="text-lg font-bold text-slate-900 leading-snug">{order?.product?.name || "Unknown Product"}</h4>
+                                        <h4 className={`text-lg font-bold leading-snug ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>{order?.product?.name || "Unknown Product"}</h4>
                                         <span className="text-sm font-medium text-slate-500 whitespace-nowrap">Qty: 1</span>
                                     </div>
                                     <div className="flex items-center gap-3 mt-3">
-                                        <span className="text-xl font-bold text-slate-900">₹{numPrice.toLocaleString('en-IN')}</span>
+                                        <span className={`text-xl font-bold ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>₹{numPrice.toLocaleString('en-IN')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -223,7 +261,7 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
                             </div>
                             <div className="flex justify-between items-center mb-6">
                                 <span className="font-bold text-slate-900">Total Amount</span>
-                                <span className="text-xl font-black text-slate-900">₹{numPrice.toLocaleString('en-IN')}</span>
+                                <span className={`text-xl font-black ${isCancelled ? 'text-slate-400 line-through' : 'text-slate-900'}`}>₹{numPrice.toLocaleString('en-IN')}</span>
                             </div>
                             <div className="space-y-2 mb-6">
                                 <div className="flex justify-between text-sm">
@@ -235,6 +273,7 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
                                     <span className="font-bold text-slate-800">{formatDate(order?.order_date)}</span>
                                 </div>
                             </div>
+                            
                             <div className="flex flex-col gap-3">
                                 <button
                                     onClick={handleDownloadInvoice}
@@ -246,9 +285,20 @@ export function OrderDetails({ onNavigate, order }: OrderDetailsProps) {
                                     </span>
                                     {downloading ? 'Generating PDF…' : 'Download Invoice'}
                                 </button>
-                                {!isDelivered && !isShipped && (
-                                    <button className="w-full bg-white border border-slate-300 hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 font-bold py-3 rounded-lg transition-colors">
-                                        Cancel Order
+
+                                {/* 🚀 The Guaranteed Cancel Button */}
+                                {canCancel && (
+                                    <button 
+                                        onClick={handleCancelOrder}
+                                        disabled={isCancelling}
+                                        className="w-full bg-white border border-red-200 hover:bg-red-50 text-red-600 font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+                                    >
+                                        {isCancelling ? (
+                                            <span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+                                        ) : (
+                                            <span className="material-symbols-outlined text-[18px]">close</span>
+                                        )}
+                                        {isCancelling ? 'Cancelling...' : 'Cancel Order'}
                                     </button>
                                 )}
                             </div>

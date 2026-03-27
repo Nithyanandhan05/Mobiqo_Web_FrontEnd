@@ -129,21 +129,7 @@ export function ProfileLayout({ activeTab, onNavigate, children }: ProfileLayout
                         })}
                     </div>
 
-                    {/* AI+ Upgrade Box */}
-                    <div className="bg-gradient-to-br from-[#1f93f6] to-[#124cb1] rounded-3xl p-6 shadow-xl shadow-blue-500/20 relative overflow-hidden">
-                        <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
-                        <div className="flex justify-between items-start mb-4 relative z-10">
-                            <span className="material-symbols-outlined text-white text-2xl font-variation-fill">temp_preferences_custom</span>
-                            <span className="bg-white/20 text-white text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded shadow-sm">PRO</span>
-                        </div>
-                        <h3 className="text-white text-lg font-black relative z-10">Upgrade to AI+</h3>
-                        <p className="text-blue-100 text-xs font-medium mt-2 leading-relaxed relative z-10">
-                            Get unlimited warranty checks and real-time support tracking.
-                        </p>
-                        <button className="w-full mt-6 py-3 bg-white text-[#1f93f6] font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-shadow relative z-10">
-                            Explore Benefits
-                        </button>
-                    </div>
+                    
                 </aside>
 
                 {/* Main Content Area */}

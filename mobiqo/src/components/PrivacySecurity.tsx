@@ -1,66 +1,50 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 
 interface PrivacySecurityProps {
     onNavigate: (page: string, data?: any) => void;
 }
 
-interface PrivacySetting {
-    two_factor_auth: boolean;
-    biometric_login: boolean;
-    data_sharing: boolean;
-    profile_visibility: string;
-}
-
 export function PrivacySecurity({ onNavigate }: PrivacySecurityProps) {
-    const [settings, setSettings] = useState<PrivacySetting>({
-        two_factor_auth: false,
-        biometric_login: true,
-        data_sharing: true,
-        profile_visibility: 'Public'
-    });
-
     useEffect(() => {
         window.scrollTo(0, 0);
-        fetchSettings();
     }, []);
 
-    const fetchSettings = async () => {
+    const handleLogoutAll = async () => {
         const token = localStorage.getItem('jwt_token');
         if (!token) return;
         try {
-            const res = await fetch('/api/privacy_settings', {
+            await fetch('/api/auth/logout-all', {
+                method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'success') {
-                    setSettings(data.settings);
-                }
-            }
+            localStorage.removeItem('jwt_token');
+            onNavigate('login');
         } catch (err) {
-            console.error('Failed to fetch settings', err);
+            console.error('Logout failed', err);
         }
     };
 
-    const toggleSetting = async (key: keyof PrivacySetting) => {
-        const newSettings = { ...settings, [key]: !settings[key] };
-        setSettings(newSettings);
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("Are you sure you want to permanently delete your account? All orders, warranties, and history will be wiped. This action cannot be undone.")) {
+            return;
+        }
 
         const token = localStorage.getItem('jwt_token');
         if (!token) return;
         try {
-            await fetch('/api/privacy_settings', {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(newSettings)
+            const res = await fetch('/api/auth/delete-account', {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
             });
+            
+            if (res.ok) {
+                localStorage.removeItem('jwt_token');
+                onNavigate('login');
+            } else {
+                alert("Failed to delete account. Please try again.");
+            }
         } catch (err) {
-            console.error('Failed to update setting', err);
-            // Revert back if fail
-            setSettings(settings);
+            console.error('Delete account failed', err);
         }
     };
 
@@ -78,7 +62,6 @@ export function PrivacySecurity({ onNavigate }: PrivacySecurityProps) {
             </div>
 
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
-
                 {/* Left Column */}
                 <div className="flex-1 flex flex-col gap-6">
 
@@ -92,44 +75,12 @@ export function PrivacySecurity({ onNavigate }: PrivacySecurityProps) {
                         </div>
 
                         <div className="flex flex-col gap-6">
-                            <div className="flex items-center justify-between pb-6 border-b border-slate-50 cursor-pointer group">
+                            <div className="flex items-center justify-between cursor-pointer group">
                                 <div className="flex items-center gap-4">
                                     <span className="material-symbols-outlined text-slate-400 font-variation-fill">lock</span>
                                     <span className="font-bold text-slate-900">Change Password</span>
                                 </div>
                                 <span className="material-symbols-outlined text-slate-300 group-hover:text-slate-500 transition-colors">chevron_right</span>
-                            </div>
-
-                            <div className="flex items-center justify-between pb-6 border-b border-slate-50">
-                                <div className="flex items-start gap-4">
-                                    <span className="material-symbols-outlined text-slate-400 font-variation-fill mt-1">security</span>
-                                    <div>
-                                        <h3 className="font-bold text-slate-900 leading-snug">Two-Factor Authentication</h3>
-                                        <p className="text-[13px] text-slate-500 mt-1">Add an extra layer of security to your account</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => toggleSetting('two_factor_auth')}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${settings.two_factor_auth ? 'bg-[#1f93f6]' : 'bg-slate-200'}`}
-                                >
-                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.two_factor_auth ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-start gap-4">
-                                    <span className="material-symbols-outlined text-slate-400 font-variation-fill mt-1">fingerprint</span>
-                                    <div>
-                                        <h3 className="font-bold text-slate-900 leading-snug">Biometric Login</h3>
-                                        <p className="text-[13px] text-slate-500 mt-1">Use FaceID or Fingerprint for faster access</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => toggleSetting('biometric_login')}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${settings.biometric_login ? 'bg-[#1f93f6]' : 'bg-slate-200'}`}
-                                >
-                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${settings.biometric_login ? 'translate-x-6' : 'translate-x-1'}`} />
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -144,7 +95,7 @@ export function PrivacySecurity({ onNavigate }: PrivacySecurityProps) {
                         </div>
 
                         <div className="flex flex-col">
-                            <div className="flex items-center justify-between py-5 border-b border-slate-50 cursor-pointer group">
+                            <div onClick={() => onNavigate('privacy-policy')} className="flex items-center justify-between py-5 border-b border-slate-50 cursor-pointer group">
                                 <div className="flex items-center gap-4">
                                     <span className="material-symbols-outlined text-slate-400 font-variation-fill">short_text</span>
                                     <span className="font-bold text-slate-900 group-hover:text-[#1f93f6] transition-colors">Privacy Policy</span>
@@ -152,7 +103,7 @@ export function PrivacySecurity({ onNavigate }: PrivacySecurityProps) {
                                 <span className="material-symbols-outlined text-slate-300">open_in_new</span>
                             </div>
 
-                            <div className="flex items-center justify-between py-5 border-b border-slate-50 cursor-pointer group">
+                            <div onClick={() => onNavigate('terms-conditions')} className="flex items-center justify-between py-5 border-b border-slate-50 cursor-pointer group">
                                 <div className="flex items-center gap-4">
                                     <span className="material-symbols-outlined text-slate-400 font-variation-fill">description</span>
                                     <span className="font-bold text-slate-900 group-hover:text-[#1f93f6] transition-colors">Terms & Conditions</span>
@@ -160,7 +111,7 @@ export function PrivacySecurity({ onNavigate }: PrivacySecurityProps) {
                                 <span className="material-symbols-outlined text-slate-300">open_in_new</span>
                             </div>
 
-                            <div className="flex items-center justify-between py-5 cursor-pointer group">
+                            <div onClick={handleDeleteAccount} className="flex items-center justify-between py-5 cursor-pointer group">
                                 <div className="flex items-center gap-4">
                                     <span className="material-symbols-outlined text-red-500 font-variation-fill">delete</span>
                                     <span className="font-bold text-red-500 group-hover:text-red-600 transition-colors">Delete Account</span>
@@ -185,30 +136,15 @@ export function PrivacySecurity({ onNavigate }: PrivacySecurityProps) {
                             <span className="material-symbols-outlined text-3xl font-variation-fill">logout</span>
                         </div>
 
-                        <button className="w-full py-3.5 px-4 bg-white border-2 border-[#1f93f6] text-[#1f93f6] hover:bg-[#1f93f6] hover:text-white transition-all font-bold rounded-xl text-sm mb-6">
+                        <button onClick={handleLogoutAll} className="w-full py-3.5 px-4 bg-white border-2 border-[#1f93f6] text-[#1f93f6] hover:bg-[#1f93f6] hover:text-white transition-all font-bold rounded-xl text-sm mb-6">
                             LOGOUT FROM ALL DEVICES
                         </button>
 
                         <p className="text-[13px] text-slate-500 leading-relaxed font-medium pb-8 border-b border-slate-100">
-                            This will end all current sessions except for this device. You will need to log back in on other devices to access your Mobiqo account.
+                            This will end all current sessions. You will need to log back in on all platforms to access your Mobiqo account.
                         </p>
-
-                        <div className="w-full text-left pt-6">
-                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Current Session</h3>
-                            <div className="flex items-center gap-3">
-                                <div className="text-[#1f93f6]">
-                                    <span className="material-symbols-outlined text-2xl font-variation-fill">laptop_mac</span>
-                                </div>
-                                <div>
-                                    <h4 className="font-bold text-slate-900 text-sm">MacBook Pro (M2 Max)</h4>
-                                    <p className="text-[11px] text-slate-500 mt-0.5 font-medium">London, UK • Active Now</p>
-                                </div>
-                            </div>
-                        </div>
-
                     </div>
                 </div>
-
             </div>
         </div>
     );

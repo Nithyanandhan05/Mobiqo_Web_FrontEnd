@@ -11,7 +11,6 @@ interface ProductDetailsProps {
 
 export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: ProductDetailsProps) {
     const [selectedStorage, setSelectedStorage] = useState('128 GB');
-    const [selectedColor, setSelectedColor] = useState('bg-slate-900');
 
     // Parse given product or default to mock data
     const phoneName = product?.name || 'Motorola Edge 70';
@@ -39,7 +38,6 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
     ];
 
     const storages = ['128 GB', '256 GB', '512 GB'];
-    const colors = ['bg-slate-900', 'bg-slate-200', 'bg-emerald-700'];
 
     return (
         <main className="flex-1 bg-background-light min-h-[calc(100vh-80px)] pb-20">
@@ -54,13 +52,12 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
                 </div>
 
                 <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
-                    {/* Left Column: Image Gallery */}
+                    {/* Left Column: Image Gallery (Thumbnails Removed) */}
                     <div className="space-y-4 animate-in fade-in slide-in-from-left-8 duration-700 delay-150 fill-mode-both">
                         <div className="relative aspect-square sm:aspect-[4/3] lg:aspect-square bg-white rounded-3xl border border-slate-100 flex items-center justify-center p-8 shadow-sm group">
                             <button className="absolute top-6 right-6 w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors z-10">
                                 <span className="material-symbols-outlined font-medium">favorite</span>
                             </button>
-                            {/* Dummy Image for Motorola Edge 70 style or provided image */}
                             <img
                                 src={mainImage}
                                 alt={phoneName}
@@ -69,19 +66,6 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
                                     (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=' + phoneName + '&background=F4FAFF&color=2962FF&size=512';
                                 }}
                             />
-                        </div>
-
-                        {/* Thumbnails */}
-                        <div className="grid grid-cols-4 gap-3 sm:gap-4">
-                            <div className="aspect-square bg-white rounded-2xl border-2 border-primary p-2 flex items-center justify-center cursor-pointer shadow-sm">
-                                <img src={mainImage} alt="Thumbnail 1" className="w-full h-full object-contain mix-blend-multiply" />
-                            </div>
-                            <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl border border-slate-100 p-2 flex items-center justify-center cursor-pointer hover:border-slate-300 transition-colors"></div>
-                            <div className="aspect-square bg-amber-50 rounded-2xl border border-slate-100 p-2 flex items-center justify-center cursor-pointer hover:border-slate-300 transition-colors"></div>
-                            <div className="aspect-square bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-300 transition-colors relative">
-                                <div className="absolute inset-0 bg-white/60 rounded-2xl"></div>
-                                <span className="relative font-bold text-slate-800 text-lg">+4</span>
-                            </div>
                         </div>
                     </div>
 
@@ -109,7 +93,6 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
                                 <span className="text-xl sm:text-2xl font-bold text-slate-300 line-through">₹{displayOriginalPrice.toLocaleString('en-IN')}</span>
                                 <span className="bg-emerald-100 text-emerald-700 text-xs sm:text-sm font-bold px-2 py-1 rounded-md uppercase tracking-wider">{discountPercent}% OFF</span>
                             </div>
-                            <p className="text-slate-500 font-medium text-sm sm:text-base">EMI starts from ₹{Math.round(displayPrice / 12).toLocaleString('en-IN')}/mo</p>
                         </div>
 
                         {/* AI Match Analysis */}
@@ -153,23 +136,6 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
                             </div>
                         </div>
 
-                        {/* Device Color */}
-                        <div className="mb-8">
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Device Color</h3>
-                            <div className="flex gap-4">
-                                {colors.map((color, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setSelectedColor(color)}
-                                        className={`w-12 h-12 rounded-full border-[3px] transition-all flex items-center justify-center ${selectedColor === color ? 'border-primary ring-2 ring-primary/20 ring-offset-2' : 'border-slate-100 hover:border-slate-300'
-                                            }`}
-                                    >
-                                        <div className={`w-full h-full rounded-full ${color}`}></div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
                         {/* Warranty */}
                         <div className="bg-white border border-slate-100 rounded-2xl p-5 flex items-center gap-4 cursor-pointer hover:border-slate-300 hover:shadow-sm transition-all mb-10 group">
                             <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-primary shrink-0 group-hover:scale-105 transition-transform">
@@ -190,7 +156,7 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
                                         onAddToCart({
                                             id: product?.id || phoneName,
                                             name: phoneName,
-                                            specs: `Flagship Processor | Storage: ${selectedStorage} | Color: ${selectedColor.split('-').pop()}`,
+                                            specs: `Flagship Processor | Storage: ${selectedStorage}`,
                                             price: displayPrice,
                                             originalPrice: displayOriginalPrice,
                                             image: mainImage,
@@ -208,7 +174,7 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
                                         onBuyNow({
                                             id: product?.id || phoneName,
                                             name: phoneName,
-                                            specs: `Flagship Processor | Storage: ${selectedStorage} | Color: ${selectedColor.split('-').pop()}`,
+                                            specs: `Flagship Processor | Storage: ${selectedStorage}`,
                                             price: displayPrice,
                                             originalPrice: displayOriginalPrice,
                                             image: mainImage,
@@ -217,7 +183,7 @@ export function ProductDetails({ onNavigate, product, onAddToCart, onBuyNow }: P
                                     }
                                 }}
                                 className="flex-1 bg-primary text-white font-bold py-4 lg:py-5 rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all text-lg">
-                                <span className="material-symbols-outlined font-variation-fill text-xl">bolt</span>
+                                <span className="material-symbols-outlined font-variation-fill">bolt</span>
                                 Buy Now
                             </button>
                         </div>

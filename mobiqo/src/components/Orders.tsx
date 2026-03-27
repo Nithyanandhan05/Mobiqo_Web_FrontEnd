@@ -10,41 +10,48 @@ export function Orders({ onNavigate }: OrdersProps) {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchOrders = async () => {
-            const token = localStorage.getItem('jwt_token');
-            if (!token) { setLoading(false); return; }
+    // 🚀 FIXED: Moved fetch logic into a reusable function
+    const fetchOrders = async () => {
+        const token = localStorage.getItem('jwt_token');
+        if (!token) { 
+            setLoading(false); 
+            return; 
+        }
 
-            try {
-                const res = await fetch('/api/my_orders', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    // 🚀 CORRECTLY MAPPING ALL NEW BACKEND FIELDS
-                    const normalized = (data.orders || []).map((o: any) => ({
-                        id: o.order_id,
-                        invoice_no: o.invoice_no,
-                        status: o.status,
-                        order_date: o.date,
-                        address: o.delivery_address,
-                        customer_name: o.delivery_name,
-                        payment_method: o.payment_method,
-                        phone: o.delivery_phone,
-                        product: {
-                            name: o.product_name,
-                            price: o.price,
-                            image_url: o.image_url,
-                        }
-                    }));
-                    setOrders(normalized);
-                }
-            } catch (err) {
-                console.error('Failed to fetch orders:', err);
-            } finally {
-                setLoading(false);
+        try {
+            const res = await fetch('/api/my_orders', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                const normalized = (data.orders || []).map((o: any) => ({
+                    id: o.order_id,
+                    invoice_no: o.invoice_no,
+                    status: o.status,
+                    order_date: o.date,
+                    address: o.delivery_address,
+                    customer_name: o.delivery_name,
+                    payment_method: o.payment_method,
+                    phone: o.delivery_phone,
+                    product: {
+                        name: o.product_name,
+                        price: o.price,
+                        image_url: o.image_url,
+                    }
+                }));
+                setOrders(normalized);
             }
-        };
+        } catch (err) {
+            console.error('Failed to fetch orders:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 🚀 FIXED: Run fetchOrders not just on mount, but ensure it runs whenever
+    // this component is rendered (like when returning from the details page).
+    useEffect(() => {
         fetchOrders();
     }, []);
 
@@ -55,14 +62,22 @@ export function Orders({ onNavigate }: OrdersProps) {
     };
 
     const getStatusText = (status: string, date: string) => {
+        if (!status) return `Confirmed on ${formatDate(date)}`;
         const s = status.toLowerCase();
+        
+        // 🚀 FIXED: Added specific handling for Cancelled text
+        if (s.includes('cancel')) return `Cancelled on ${formatDate(date)}`;
         if (s.includes('delivered')) return `Delivered on ${formatDate(date)}`;
         if (s.includes('shipped')) return `Shipped on ${formatDate(date)}`;
         return `Confirmed on ${formatDate(date)}`;
     };
 
     const getStatusSubtext = (status: string) => {
+        if (!status) return 'Your item is being processed';
         const s = status.toLowerCase();
+        
+        // 🚀 FIXED: Added specific handling for Cancelled subtext
+        if (s.includes('cancel')) return 'This order was cancelled';
         if (s.includes('delivered')) return 'Your 1-Year Warranty is now active';
         if (s.includes('shipped')) return 'Your item has been shipped';
         return 'Your item is being processed';
@@ -70,7 +85,6 @@ export function Orders({ onNavigate }: OrdersProps) {
 
     return (
         <ProfileLayout activeTab="orders" onNavigate={onNavigate}>
-            {/* CSS ANIMATION INJECTION */}
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @keyframes fadeInUp {
@@ -106,10 +120,11 @@ export function Orders({ onNavigate }: OrdersProps) {
                     </div>
                 ) : (
                     orders.map((order: any, idx: number) => {
-                        const isDelivered = order.status?.toLowerCase().includes('delivered');
-                        const isShipped = order.status?.toLowerCase().includes('shipped');
+                        const safeStatus = order.status || '';
+                        const isDelivered = safeStatus.toLowerCase().includes('delivered');
+                        const isShipped = safeStatus.toLowerCase().includes('shipped');
+                        const isCancelled = safeStatus.toLowerCase().includes('cancel');
 
-                        // Robust Price Formatting
                         const safePriceStr = String(order.product?.price || '0').replace(/[^0-9.]/g, '');
                         const numPrice = parseFloat(safePriceStr) || 0;
 
@@ -117,12 +132,14 @@ export function Orders({ onNavigate }: OrdersProps) {
                             <div
                                 key={order.id || idx}
                                 onClick={() => onNavigate('order-details', order)}
-                                className="bg-white p-4 sm:p-5 rounded-lg border border-slate-200 hover:shadow-md transition-shadow cursor-pointer mb-[-1px] animate-fade-in-up"
+                                className={`bg-white p-4 sm:p-5 rounded-lg border transition-shadow cursor-pointer mb-[-1px] animate-fade-in-up ${
+                                    isCancelled ? 'border-red-100 opacity-75' : 'border-slate-200 hover:shadow-md'
+                                }`}
                                 style={{ animationDelay: `${idx * 0.08}s` }}
                             >
                                 <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 w-full">
                                     {/* Left: Image */}
-                                    <div className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center flex-shrink-0 bg-slate-50 rounded-lg border border-slate-100 p-1">
+                                    <div className={`w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center flex-shrink-0 bg-slate-50 rounded-lg border p-1 ${isCancelled ? 'border-red-50 grayscale' : 'border-slate-100'}`}>
                                         <img
                                             src={getHDImage(order.product?.image_url, order.product?.name)}
                                             alt={order.product?.name}
@@ -133,10 +150,10 @@ export function Orders({ onNavigate }: OrdersProps) {
 
                                     {/* Middle: Title & Price */}
                                     <div className="flex-1 min-w-0 pr-4 flex flex-col sm:flex-row sm:gap-4 md:gap-12 w-full">
-                                        <h3 className="text-sm sm:text-[15px] font-semibold text-slate-800 flex-1 truncate sm:whitespace-normal sm:line-clamp-2 leading-snug">
+                                        <h3 className={`text-sm sm:text-[15px] font-semibold flex-1 truncate sm:whitespace-normal sm:line-clamp-2 leading-snug ${isCancelled ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
                                             {order.product?.name}
                                         </h3>
-                                        <div className="text-sm sm:text-[15px] font-medium text-slate-800 mt-2 sm:mt-0 whitespace-nowrap">
+                                        <div className={`text-sm sm:text-[15px] font-medium mt-2 sm:mt-0 whitespace-nowrap ${isCancelled ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
                                             ₹{numPrice.toLocaleString('en-IN')}
                                         </div>
                                     </div>
@@ -144,10 +161,19 @@ export function Orders({ onNavigate }: OrdersProps) {
                                     {/* Right: Status */}
                                     <div className="w-full sm:w-72 xl:w-80 flex flex-col gap-1 sm:pl-4 border-t sm:border-t-0 border-slate-100 pt-3 sm:pt-0">
                                         <div className="flex items-center gap-2">
-                                            <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isDelivered ? 'bg-green-500' : isShipped ? 'bg-orange-500' : 'bg-blue-500'}`}></div>
-                                            <span className="text-sm sm:text-[15px] font-semibold text-slate-800">{getStatusText(order.status, order.order_date)}</span>
+                                            <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                                                isCancelled ? 'bg-red-500' :
+                                                isDelivered ? 'bg-green-500' : 
+                                                isShipped ? 'bg-orange-500' : 
+                                                'bg-blue-500'
+                                            }`}></div>
+                                            <span className={`text-sm sm:text-[15px] font-semibold ${isCancelled ? 'text-red-600' : 'text-slate-800'}`}>
+                                                {getStatusText(safeStatus, order.order_date)}
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] sm:text-xs text-slate-500 ml-[18px]">{getStatusSubtext(order.status)}</p>
+                                        <p className="text-[11px] sm:text-xs text-slate-500 ml-[18px]">
+                                            {getStatusSubtext(safeStatus)}
+                                        </p>
                                     </div>
                                 </div>
                             </div>

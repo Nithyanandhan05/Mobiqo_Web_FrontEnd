@@ -30,8 +30,11 @@ import { Notifications } from './components/Notifications';
 import { PrivacySecurity } from './components/PrivacySecurity';
 import { PaymentMethods } from './components/PaymentMethods';
 import { AIDeliveryLocations } from './components/AIDeliveryLocations';
-// --- IMPORT NEW RESET PASSWORD SCREEN ---
 import ResetPassword from './components/ResetPassword';
+// 🚀 NEW: Import Legal Screens
+import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { TermsConditions } from './components/TermsConditions';
+
 import { AdminDashboard } from './components/AdminDashboard';
 import { AdminUserManagement } from './components/AdminUserManagement';
 import { AdminInventory } from './components/AdminInventory';
@@ -42,7 +45,6 @@ import { AdminWarranties } from './components/AdminWarranties';
 import { AdminReports } from './components/AdminReports';
 import { AdminSettings } from './components/AdminSettings';
 
-// --- IMPORT OUR NEW FIREBASE NOTIFICATION HOOK ---
 import { requestNotificationPermission } from './firebase';
 
 export interface CartItem {
@@ -55,19 +57,18 @@ export interface CartItem {
     quantity: number;
 }
 
-// 🚀 FIXED: Added 'reset-password' to the Page types
+// 🚀 FIXED: Added privacy-policy and terms-conditions to Page types
 type Page =
     | 'home' | 'login' | 'register' | 'forgot-password' | 'reset-password'
     | 'ai-assistant' | 'product-details' | 'cart' | 'address' | 'checkout' | 'order-confirmation'
     | 'compare' | 'compare-results'
     | 'profile' | 'orders' | 'order-details' | 'warranty' | 'warranty-register' | 'warranty-detail' | 'warranty-claim' | 'warranty-extend'
-    | 'addresses' | 'notifications' | 'privacy' | 'payment' | 'ai-delivery'
+    | 'addresses' | 'notifications' | 'privacy' | 'payment' | 'ai-delivery' | 'privacy-policy' | 'terms-conditions'
     | 'admin-dashboard' | 'admin-users' | 'admin-inventory' | 'admin-add-product' | 'admin-edit-product'
     | 'admin-orders' | 'admin-warranties' | 'admin-reports' | 'admin-settings';
 
 export default function App() {
 
-    // 🚀 FIXED: Check the URL safely inside the initial state so it doesn't break React Hooks
     const [page, setPage] = useState<Page>(() => {
         if (window.location.pathname === '/reset-password') return 'reset-password';
         return 'home';
@@ -80,7 +81,6 @@ export default function App() {
     const [userName, setUserName] = useState(() => localStorage.getItem('userName') || '');
     const [userEmail, setUserEmail] = useState(() => localStorage.getItem('userEmail') || '');
 
-    // --- FIREBASE SILENT INIT ON APP LOAD ---
     useEffect(() => {
         const token = localStorage.getItem('jwt_token');
         if (token) {
@@ -171,7 +171,6 @@ export default function App() {
 
     const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-    // 🚀 FIXED: Added 'reset-password' to the hidden Nav array
     const hideNav = ['login', 'register', 'forgot-password', 'reset-password'].includes(page);
     const isAdminPage = page.startsWith('admin-');
 
@@ -180,7 +179,7 @@ export default function App() {
             case 'login': return <Login onNavigate={navigate as any} onLoginSuccess={handleLoginSuccess} />;
             case 'register': return <Register onNavigate={navigate as any} onLoginSuccess={handleLoginSuccess} />;
             case 'forgot-password': return <ForgotPassword onNavigate={navigate as any} />;
-            case 'reset-password': return <ResetPassword />; // 🚀 FIXED: Added the Reset Password Route
+            case 'reset-password': return <ResetPassword />;
             case 'ai-assistant': return <AIAssistant onNavigate={navigate as any} />;
             case 'product-details': return <ProductDetails onNavigate={navigate as any} product={pageData} onAddToCart={handleAddToCart} onBuyNow={handleBuyNow} />;
             case 'cart': return <Cart onNavigate={navigate as any} cart={cart} onRemoveFromCart={handleRemoveFromCart} />;
@@ -200,6 +199,11 @@ export default function App() {
             case 'addresses': return <ProfileLayout activeTab="addresses" onNavigate={navigate as any}><Address onNavigate={navigate as any} cart={cart} /></ProfileLayout>;
             case 'notifications': return <ProfileLayout activeTab="notifications" onNavigate={navigate as any}><Notifications onNavigate={navigate as any} /></ProfileLayout>;
             case 'privacy': return <ProfileLayout activeTab="privacy" onNavigate={navigate as any}><PrivacySecurity onNavigate={navigate as any} /></ProfileLayout>;
+            
+            // 🚀 NEW: Legal pages rendering
+            case 'privacy-policy': return <ProfileLayout activeTab="privacy" onNavigate={navigate as any}><PrivacyPolicy onNavigate={navigate as any} /></ProfileLayout>;
+            case 'terms-conditions': return <ProfileLayout activeTab="privacy" onNavigate={navigate as any}><TermsConditions onNavigate={navigate as any} /></ProfileLayout>;
+            
             case 'payment': return <ProfileLayout activeTab="payment" onNavigate={navigate as any}><PaymentMethods onNavigate={navigate as any} /></ProfileLayout>;
             case 'ai-delivery': return <AIDeliveryLocations onNavigate={navigate as any} />;
 

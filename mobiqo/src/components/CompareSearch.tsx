@@ -20,15 +20,12 @@ interface CompareSearchProps {
     onNavigate?: (page: 'home' | 'compare' | 'compare-results' | 'product-details', data?: any) => void;
 }
 
-const FILTER_CHIPS = ['All', 'Budget', 'Gaming', 'Camera', 'Flagship'];
-
 export function CompareSearch({ onNavigate }: CompareSearchProps) {
     const [query, setQuery] = useState('');
     const [activeQuery, setActiveQuery] = useState('');
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedDevices, setSelectedDevices] = useState<CompareDevice[]>([]);
-    const [activeFilter, setActiveFilter] = useState('All');
 
     const handleSearch = async () => {
         if (query.trim().length < 2) {
@@ -45,6 +42,7 @@ export function CompareSearch({ onNavigate }: CompareSearchProps) {
                 const data = await res.json();
                 if (data.status === 'success') {
                     const fetched = data.results || [];
+                    // Keep the exact match at the top
                     fetched.sort((a: SearchResult, b: SearchResult) => {
                         if (a.match_percent === 'Exact Match' && b.match_percent !== 'Exact Match') return -1;
                         if (a.match_percent !== 'Exact Match' && b.match_percent === 'Exact Match') return 1;
@@ -92,8 +90,8 @@ export function CompareSearch({ onNavigate }: CompareSearchProps) {
                     <h1 className="text-2xl font-black text-slate-900 tracking-tight">Compare Devices</h1>
                 </div>
 
-                {/* Search Bar */}
-                <div className="relative mb-6">
+                {/* Search Bar - No Filter Chips Below */}
+                <div className="relative mb-8">
                     <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
                     <input
                         type="text"
@@ -111,22 +109,6 @@ export function CompareSearch({ onNavigate }: CompareSearchProps) {
                         placeholder="Search smartphones... e.g. Samsung S24 (Press Enter)"
                         className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 text-base font-medium text-slate-700 border border-slate-200 shadow-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none placeholder:text-slate-400"
                     />
-                </div>
-
-                {/* Filter Chips */}
-                <div className="flex gap-2 mb-8 flex-wrap">
-                    {FILTER_CHIPS.map(chip => (
-                        <button
-                            key={chip}
-                            onClick={() => setActiveFilter(chip)}
-                            className={`px-5 py-2 rounded-full text-sm font-bold transition-all ${activeFilter === chip
-                                    ? 'bg-primary text-white shadow-md shadow-primary/20'
-                                    : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
-                                }`}
-                        >
-                            {chip}
-                        </button>
-                    ))}
                 </div>
 
                 {/* Results Section */}
@@ -164,7 +146,6 @@ export function CompareSearch({ onNavigate }: CompareSearchProps) {
                                                         src={getHDImage(result.image_url, result.name)}
                                                         alt={result.name}
                                                         className="w-full h-full object-contain"
-                                                        // 🚀 FIXED: Replaced GSM Arena with a bulletproof unblocked placeholder!
                                                         onError={(e) => {
                                                             (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(result.name || 'Phone')}&background=f8fafc&color=2962ff&size=400`;
                                                         }}
@@ -184,12 +165,13 @@ export function CompareSearch({ onNavigate }: CompareSearchProps) {
                                             <button
                                                 onClick={() => handleAdd(result)}
                                                 disabled={added || (selectedDevices.length >= 2 && !added)}
-                                                className={`w-full py-3 rounded-xl font-bold text-sm transition-all btn-press ${added
+                                                className={`w-full py-3 rounded-xl font-bold text-sm transition-all btn-press ${
+                                                    added
                                                         ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
                                                         : selectedDevices.length >= 2
                                                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                                             : 'bg-white text-primary border-2 border-primary hover:bg-blue-50'
-                                                    }`}
+                                                }`}
                                             >
                                                 {added ? '✓ Added' : '+ Add to Compare'}
                                             </button>
@@ -206,7 +188,7 @@ export function CompareSearch({ onNavigate }: CompareSearchProps) {
                     </div>
                 )}
 
-                {/* Empty State */}
+                {/* Empty State / Initial Load */}
                 {activeQuery.length < 2 && (
                     <div className="text-center py-16">
                         <span className="material-symbols-outlined text-6xl text-slate-200 mb-4 block">compare_arrows</span>
@@ -234,8 +216,9 @@ export function CompareSearch({ onNavigate }: CompareSearchProps) {
                                             src={getHDImage(device.image_url, device.name)}
                                             alt={device.name}
                                             className="w-full h-full object-contain"
-                                            // 🚀 FIXED: Replaced GSM Arena here too!
-                                            onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/400x400/f8fafc/2962ff?text=Smartphone'; }}
+                                            onError={(e) => {
+                                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(device.name || 'Phone')}&background=f8fafc&color=2962ff&size=400`;
+                                            }}
                                         />
                                     </div>
                                     <span className="text-sm font-bold text-slate-700 truncate max-w-[120px]">{device.name}</span>

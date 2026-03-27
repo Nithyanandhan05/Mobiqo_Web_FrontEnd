@@ -29,8 +29,8 @@ export function WarrantyMain({ onNavigate }: WarrantyMainProps) {
                     });
                     if (res.ok) {
                         const data = await res.json();
-                        if (data.status === 'success' && data.devices?.length > 0) {
-                            // Map backend fields to frontend interface
+                        // --- FIXED: Now it accepts an empty array as a valid response ---
+                        if (data.status === 'success' && Array.isArray(data.devices)) {
                             const mappedWarranties = data.devices.map((d: any) => ({
                                 id: d.id,
                                 device_name: d.name,
@@ -40,39 +40,24 @@ export function WarrantyMain({ onNavigate }: WarrantyMainProps) {
                             }));
                             setWarranties(mappedWarranties);
                             setLoading(false);
-                            return;
+                            return; // Stop execution so it doesn't hit the fallback
                         }
                     }
                 }
-            } catch { /* fallback */ }
+            } catch (err) { 
+                console.error("Error fetching warranties:", err);
+            }
 
-            // Demo data fallback
-            setWarranties([
-                {
-                    id: 1,
-                    device_name: 'Samsung Galaxy S24',
-                    model_number: 'SM-S928',
-                    purchase_date: '2024-01-15',
-                    warranty_expiry: '2025-01-15',
-                    status: 'Active'
-                },
-                {
-                    id: 2,
-                    device_name: 'OnePlus Nord CE 4',
-                    model_number: 'OP-NC4',
-                    purchase_date: '2023-06-10',
-                    warranty_expiry: '2024-06-10',
-                    status: 'Expired'
-                }
-            ]);
+            // Fallback will ONLY trigger if the network request physically fails or token is missing
+            setWarranties([]);
             setLoading(false);
         };
 
         fetchWarranties();
     }, []);
 
-    const activeCount = warranties.filter(w => w.status === 'Active').length;
-    const expiredCount = warranties.filter(w => w.status === 'Expired').length;
+    const activeCount = warranties.filter(w => w.status === 'Active' || w.status === 'Secure').length;
+    const expiredCount = warranties.filter(w => w.status === 'Expired' || w.status === 'Rejected').length;
     const expiringCount = warranties.filter(w => {
         if (!w.warranty_expiry) return false;
         const days = Math.ceil((new Date(w.warranty_expiry).getTime() - Date.now()) / 86400000);
@@ -85,8 +70,9 @@ export function WarrantyMain({ onNavigate }: WarrantyMainProps) {
     };
 
     const getStatusColor = (status?: string) => {
-        if (status === 'Active') return 'bg-emerald-100 text-emerald-700';
-        if (status === 'Expired') return 'bg-red-100 text-red-600';
+        const s = (status || '').toLowerCase();
+        if (s === 'active' || s === 'secure') return 'bg-emerald-100 text-emerald-700';
+        if (s === 'expired' || s === 'rejected') return 'bg-red-100 text-red-600';
         return 'bg-amber-100 text-amber-700';
     };
 
@@ -156,7 +142,7 @@ export function WarrantyMain({ onNavigate }: WarrantyMainProps) {
                             const daysLeft = getDaysLeft(w.warranty_expiry);
                             return (
                                 <div key={w.id} className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-                                <div className="w-12 h-12 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                    <div className="w-12 h-12 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
                                         <img
                                             src={getHDImage(w.image_url, w.device_name || '')}
                                             alt={w.device_name}

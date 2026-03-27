@@ -1,5 +1,6 @@
-
+import { useState, useMemo } from 'react';
 import { getHDImage } from '../utils/imageHelper';
+
 interface AIResultProps {
     data: any;
     onBack: () => void;
@@ -11,14 +12,48 @@ export function AIDecisionReport({ data, onBack, onNavigate }: AIResultProps) {
         return <div className="p-8 text-center text-red-500 font-bold">Error loading AI data. Please go back and try again.</div>;
     }
 
-    const { top_match, alternatives, analysis } = data;
-    const rawTopImage = top_match.image_urls ? top_match.image_urls[0] : top_match.image_url;
-    const topMatchImage = getHDImage(rawTopImage, top_match.name);
+    // 1. Gather ALL phones and filter out exact base-name duplicates
+    const allUniquePhones = useMemo(() => {
+        const list: any[] = [];
+        
+        // Add top match
+        if (data.top_match) {
+            list.push({ ...data.top_match, isHeroDefault: true });
+        }
+        
+        // Add alternatives
+        if (data.alternatives && Array.isArray(data.alternatives)) {
+            data.alternatives.forEach((alt: any) => list.push(alt));
+        }
+
+        // Filter duplicates by base name (ignores "8GB RAM" differences)
+        const seen = new Set();
+        return list.filter((phone) => {
+            const baseName = (phone.name || "").split("(")[0].trim();
+            if (seen.has(baseName)) return false;
+            seen.add(baseName);
+            return true;
+        });
+    }, [data]);
+
+    // 2. State to track the currently selected phone for the Hero section
+    const [selectedPhone, setSelectedPhone] = useState<any>(allUniquePhones[0] || data.top_match);
+
+    // 3. The alternatives list shows all phones EXCEPT the currently selected one
+    const displayAlts = allUniquePhones.filter(phone => phone.name !== selectedPhone.name);
+
+    const { analysis } = data;
+    const rawTopImage = selectedPhone.image_urls ? selectedPhone.image_urls[0] : selectedPhone.image_url;
+    const topMatchImage = getHDImage(rawTopImage, selectedPhone.name);
 
     // Parse specs safely
-    const camSpec = top_match.camera_spec || 'Advanced System';
-    const batSpec = top_match.battery_spec || 'All-Day Battery';
-    const procSpec = top_match.processor_spec || 'Latest Gen SoC';
+    const camSpec = selectedPhone.camera_spec || 'Advanced System';
+    const batSpec = selectedPhone.battery_spec || 'All-Day Battery';
+    const procSpec = selectedPhone.processor_spec || 'Latest Gen SoC';
+    const matchPercent = selectedPhone.match_percent || '95%';
+
+    // Extract float for SVG stroke
+    const matchFloat = parseFloat(matchPercent.replace('%', '')) / 100 || 0.95;
 
     return (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -45,7 +80,7 @@ export function AIDecisionReport({ data, onBack, onNavigate }: AIResultProps) {
             {/* Main Content Grid */}
             <div className="grid lg:grid-cols-5 gap-8">
                 {/* Left Column - Top Match */}
-                <div className="lg:col-span-3 bg-gradient-to-br from-blue-50/80 to-sky-50/50 rounded-3xl p-6 sm:p-10 border border-blue-100/50 relative overflow-hidden">
+                <div key={selectedPhone.name} className="animate-in fade-in slide-in-from-left-4 duration-500 lg:col-span-3 bg-gradient-to-br from-blue-50/80 to-sky-50/50 rounded-3xl p-6 sm:p-10 border border-blue-100/50 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl -z-10"></div>
 
                     <div className="inline-flex items-center gap-1.5 bg-white text-primary text-xs font-black uppercase tracking-wider px-3 py-1.5 rounded-full shadow-sm border border-blue-50 mb-8">
@@ -57,8 +92,8 @@ export function AIDecisionReport({ data, onBack, onNavigate }: AIResultProps) {
                         <div className="sm:col-span-2 relative aspect-[3/4] bg-white rounded-2xl p-4 shadow-sm flex items-center justify-center border border-slate-50">
                             <img
                                 src={topMatchImage}
-                                alt={top_match.name}
-                                className="w-full h-full object-contain mix-blend-multiply drop-shadow-md"
+                                alt={selectedPhone.name}
+                                className="w-full h-full object-contain mix-blend-multiply drop-shadow-md transition-all duration-300"
                                 onError={(e) => {
                                     (e.target as HTMLImageElement).src = 'https://ui-avatars.com/api/?name=Phone&background=F4FAFF&color=2962FF&size=512';
                                 }}
@@ -66,21 +101,21 @@ export function AIDecisionReport({ data, onBack, onNavigate }: AIResultProps) {
                         </div>
                         <div className="sm:col-span-3 space-y-4">
                             <h2 className="text-3xl sm:text-4xl font-black text-slate-900 leading-tight">
-                                {top_match.name}
+                                {selectedPhone.name}
                             </h2>
                             <p className="text-slate-500 font-medium">
                                 (Premium Device Matched to Profile)
                             </p>
                             <div className="flex items-end gap-3 pt-2">
-                                <span className="text-4xl font-black text-primary tracking-tight">{top_match.price}</span>
+                                <span className="text-4xl font-black text-primary tracking-tight">{selectedPhone.price}</span>
                             </div>
 
                             <div className="flex items-center gap-4 pt-6">
                                 <div className="relative w-[72px] h-[72px] flex items-center justify-center bg-white rounded-full border-[6px] border-slate-100">
                                     <svg className="absolute inset-0 w-full h-full transform -rotate-90">
-                                        <circle cx="30" cy="30" r="27" fill="none" className="stroke-primary drop-shadow-md" strokeWidth="6" strokeDasharray="169.6" strokeDashoffset={169.6 * (1 - 0.95)} strokeLinecap="round" />
+                                        <circle cx="30" cy="30" r="27" fill="none" className="stroke-primary drop-shadow-md" strokeWidth="6" strokeDasharray="169.6" strokeDashoffset={169.6 * (1 - matchFloat)} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s ease-in-out' }} />
                                     </svg>
-                                    <span className="relative text-base font-black text-slate-900">{top_match.match_percent || '95%'}</span>
+                                    <span className="relative text-base font-black text-slate-900">{matchPercent}</span>
                                 </div>
                                 <div>
                                     <div className="text-slate-900 font-black text-sm uppercase tracking-wider">AI Confidence</div>
@@ -94,22 +129,22 @@ export function AIDecisionReport({ data, onBack, onNavigate }: AIResultProps) {
                         <div className="bg-white/80 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-50">
                             <span className="material-symbols-outlined text-primary mb-3">photo_camera</span>
                             <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mb-1 mt-1">Camera</div>
-                            <div className="text-sm font-black text-slate-900 leading-tight">{camSpec}</div>
+                            <div className="text-sm font-black text-slate-900 leading-tight truncate">{camSpec}</div>
                         </div>
                         <div className="bg-white/80 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-50">
                             <span className="material-symbols-outlined text-primary mb-3">battery_charging_full</span>
                             <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mb-1 mt-1">Battery</div>
-                            <div className="text-sm font-black text-slate-900 leading-tight">{batSpec}</div>
+                            <div className="text-sm font-black text-slate-900 leading-tight truncate">{batSpec}</div>
                         </div>
                         <div className="bg-white/80 p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-50">
                             <span className="material-symbols-outlined text-primary mb-3">memory</span>
                             <div className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase tracking-wider mb-1 mt-1">Chipset</div>
-                            <div className="text-sm font-black text-slate-900 leading-tight">{procSpec}</div>
+                            <div className="text-sm font-black text-slate-900 leading-tight truncate">{procSpec}</div>
                         </div>
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-4">
-                        <button onClick={() => onNavigate && onNavigate('product-details', top_match)} className="flex-1 bg-primary text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all">
+                        <button onClick={() => onNavigate && onNavigate('product-details', selectedPhone)} className="flex-1 bg-primary text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:-translate-y-0.5 transition-all">
                             View Full Details
                             <span className="material-symbols-outlined font-black">arrow_forward</span>
                         </button>
@@ -129,26 +164,32 @@ export function AIDecisionReport({ data, onBack, onNavigate }: AIResultProps) {
                     </div>
 
                     <div className="prose prose-sm prose-slate mb-10 text-slate-600 leading-relaxed font-medium">
-                        <p>{analysis || `The ${top_match.name} is an excellent choice within your budget, offering a premium design and a standout performance profile tailored specifically to your specified requirements and brand preferences.`}</p>
+                        <p>{analysis || `The ${selectedPhone.name} is an excellent choice within your budget, offering a premium design and a standout performance profile tailored specifically to your specified requirements and brand preferences.`}</p>
                     </div>
 
-                    <div className="border-t border-slate-100 pt-8 mt-auto">
-                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Alternative Contenders</h4>
-                        <div className="space-y-3">
-                            {alternatives && alternatives.map((alt: any, idx: number) => (
-                                <div key={idx} className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-100 transition-colors">
-                                    <div className="w-12 h-12 bg-white border border-slate-100 shadow-sm rounded-xl p-2 flex items-center justify-center shrink-0">
-                                        <img src={getHDImage(alt.image_url, alt.name)} alt={alt.name} className="w-full h-full object-contain mix-blend-multiply" />
+                    {displayAlts.length > 0 && (
+                        <div className="border-t border-slate-100 pt-8 mt-auto">
+                            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Alternative Contenders</h4>
+                            <div className="space-y-3">
+                                {displayAlts.map((alt: any, idx: number) => (
+                                    <div 
+                                        key={idx} 
+                                        onClick={() => setSelectedPhone(alt)} // 🚀 SWAP TRIGGER
+                                        className="flex items-center gap-4 p-3 rounded-2xl hover:bg-slate-50 cursor-pointer border border-transparent hover:border-slate-200 transition-all shadow-sm hover:shadow-md"
+                                    >
+                                        <div className="w-12 h-12 bg-white border border-slate-100 shadow-sm rounded-xl p-2 flex items-center justify-center shrink-0">
+                                            <img src={getHDImage(alt.image_url, alt.name)} alt={alt.name} className="w-full h-full object-contain mix-blend-multiply" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-slate-900 text-sm truncate">{alt.name}</div>
+                                            <div className="text-xs text-primary font-bold truncate mt-0.5">{alt.price} • {alt.match_percent || "85%"} Match</div>
+                                        </div>
+                                        <span className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors">swipe_up</span>
                                     </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-slate-900 text-sm truncate">{alt.name}</div>
-                                        <div className="text-xs text-slate-500 font-medium truncate mt-0.5">Best for: Balanced Experience</div>
-                                    </div>
-                                    <span className="material-symbols-outlined text-slate-300">chevron_right</span>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 
@@ -162,21 +203,21 @@ export function AIDecisionReport({ data, onBack, onNavigate }: AIResultProps) {
                     <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm">
                         <h4 className="font-bold text-slate-900 mb-4">Display Quality</h4>
                         <div className="w-full bg-slate-100 h-2.5 rounded-full mb-4">
-                            <div className="bg-primary h-2.5 rounded-full w-[85%]"></div>
+                            <div className="bg-primary h-2.5 rounded-full w-[85%] transition-all duration-1000"></div>
                         </div>
                         <p className="text-sm text-slate-500 font-medium leading-relaxed">Top-tier brightness and color gamut coverage matching studio-grade visuals.</p>
                     </div>
                     <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm">
                         <h4 className="font-bold text-slate-900 mb-4">Battery Efficiency</h4>
                         <div className="w-full bg-slate-100 h-2.5 rounded-full mb-4">
-                            <div className="bg-primary h-2.5 rounded-full w-[95%]"></div>
+                            <div className="bg-primary h-2.5 rounded-full transition-all duration-1000" style={{ width: `${(matchFloat * 100) + 2}%` }}></div>
                         </div>
                         <p className="text-sm text-slate-500 font-medium leading-relaxed">Optimized architecture ensures all-day endurance on a single charge.</p>
                     </div>
                     <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm">
                         <h4 className="font-bold text-slate-900 mb-4">Camera Score</h4>
                         <div className="w-full bg-slate-100 h-2.5 rounded-full mb-4">
-                            <div className="bg-primary h-2.5 rounded-full w-[90%]"></div>
+                            <div className="bg-primary h-2.5 rounded-full transition-all duration-1000" style={{ width: `${(matchFloat * 100) - 3}%` }}></div>
                         </div>
                         <p className="text-sm text-slate-500 font-medium leading-relaxed">Outperforms competitors in its segment, specifically tuned for your needs.</p>
                     </div>

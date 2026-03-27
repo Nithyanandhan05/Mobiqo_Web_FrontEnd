@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AIDecisionReport } from './AIDecisionReport';
 
 interface AIAssistantProps {
@@ -10,13 +10,13 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
 
     // Step 1: Budget
     const [selectedBudget, setSelectedBudget] = useState<string>('Mid-Range');
-    const [customBudget, setCustomBudget] = useState<string>(''); // 🚀 NEW: Custom Budget State
+    const [customBudget, setCustomBudget] = useState<string>(''); 
 
     // Step 2: Usage
     const [selectedUseCase, setSelectedUseCase] = useState<string>('Gaming');
 
     // Step 3: Brand
-    const [selectedBrands, setSelectedBrands] = useState<string[]>([]); // 🚀 NEW: Array for multiple brands
+    const [selectedBrands, setSelectedBrands] = useState<string[]>([]); 
 
     // Step 4: Final Details
     const [selectedStorage, setSelectedStorage] = useState<string>('128GB');
@@ -26,6 +26,14 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
     // AI State
     const [isGenerating, setIsGenerating] = useState<boolean>(false);
     const [aiResult, setAiResult] = useState<any>(null);
+
+    // 🚀 THE FIX: Scroll to top smoothly every time the 'step' changes
+    useEffect(() => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }, [step]);
 
     const budgets = [
         {
@@ -91,7 +99,6 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
         }
     };
 
-    // 🚀 NEW: Function to handle multiple brand toggling
     const handleBrandToggle = (brand: string) => {
         if (brand === 'Any') {
             setSelectedBrands([]);
@@ -106,7 +113,6 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
         setIsGenerating(true);
         setStep(5);
         try {
-            // 🚀 Determine final budget (Custom vs Preset)
             let budgetNum = 30000;
             if (customBudget && !isNaN(Number(customBudget))) {
                 budgetNum = Number(customBudget);
@@ -119,10 +125,8 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                 }
             }
 
-            // 🚀 Format multiple brands into a comma-separated string
             const brandString = selectedBrands.length > 0 ? selectedBrands.join(', ') : 'Any';
 
-            // 🚀 Send ALL data (including step 4) to the backend
             const response = await fetch('/api/recommend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -214,14 +218,13 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                             <div className="max-w-4xl mx-auto">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
                                     {budgets.map((budget) => {
-                                        // Selected if it matches and no custom budget is typed
                                         const isSelected = selectedBudget === budget.id && customBudget === '';
                                         return (
                                             <div
                                                 key={budget.id}
                                                 onClick={() => {
                                                     setSelectedBudget(budget.id);
-                                                    setCustomBudget(''); // Clear custom budget on click
+                                                    setCustomBudget('');
                                                 }}
                                                 className={`relative rounded-2xl p-6 cursor-pointer border-2 transition-all ${isSelected
                                                     ? 'bg-primary border-primary text-white shadow-xl shadow-primary/30 transform scale-105'
@@ -254,7 +257,6 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                                     })}
                                 </div>
 
-                                {/* 🚀 NEW: Custom Budget Input */}
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Or enter custom budget (₹)</label>
                                     <input
@@ -262,7 +264,7 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                                         value={customBudget}
                                         onChange={(e) => {
                                             setCustomBudget(e.target.value);
-                                            setSelectedBudget(''); // Clear standard selection
+                                            setSelectedBudget('');
                                         }}
                                         placeholder="e.g. 25000"
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-medium outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
@@ -307,7 +309,6 @@ export function AIAssistant({ onNavigate }: AIAssistantProps) {
                         {step === 3 && (
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 mb-10 sm:mb-16 max-w-5xl mx-auto">
                                 {brands.map((brand) => {
-                                    // 🚀 NEW: Multi-select highlight logic
                                     const isSelected = selectedBrands.includes(brand) || (brand === 'Any' && selectedBrands.length === 0);
                                     return (
                                         <div

@@ -24,10 +24,12 @@ interface WarrantyDetailProps {
 export function WarrantyDetail({ onNavigate, warrantyId, device }: WarrantyDetailProps) {
     const [detail, setDetail] = useState<WarrantyDetailData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
     useEffect(() => {
         const fetchDetail = async () => {
             setLoading(true);
+            setError(false);
             try {
                 const token = localStorage.getItem('jwt_token');
                 if (token) {
@@ -36,31 +38,21 @@ export function WarrantyDetail({ onNavigate, warrantyId, device }: WarrantyDetai
                     });
                     if (res.ok) {
                         const json = await res.json();
-                        if (json.status === 'success') {
+                        // --- FIXED: Ensure it only sets data if successful ---
+                        if (json.status === 'success' && json.data) {
                             setDetail(json.data);
                             setLoading(false);
-                            return;
+                            return; 
                         }
                     }
                 }
-            } catch { /* fallback */ }
-            // Fallback demo
-            setDetail({
-                id: warrantyId,
-                device_name: device?.name || 'POCO X6 Pro 5G',
-                device_type: 'Smartphone',
-                purchase_date: 'Mar 03, 2025',
-                expiry_date: device?.expiry || 'Mar 03, 2027',
-                status: device?.status || 'Secure',
-                progress: 0.85,
-                months_left: '24 Months Left',
-                invoice_name: 'Invoice_Document.pdf',
-                history: [
-                    { title: 'Warranty Registered', date: 'Mar 03, 2025', desc: 'Your warranty was successfully registered in the system.', is_last: false },
-                    { title: 'Coverage Active', date: 'Mar 03, 2025', desc: 'Your device is fully covered for repairs and services.', is_last: true },
-                ]
-            });
-            setLoading(false);
+                // If it fails (e.g. 404 because you deleted it), show error state instead of fallback data
+                setError(true);
+                setLoading(false);
+            } catch (err) { 
+                setError(true);
+                setLoading(false);
+            }
         };
         fetchDetail();
     }, [warrantyId, device]);
@@ -78,12 +70,23 @@ export function WarrantyDetail({ onNavigate, warrantyId, device }: WarrantyDetai
         );
     }
 
-    if (!detail) return null;
+    if (error || !detail) {
+        return (
+            <main className="flex-1 bg-background-light min-h-[calc(100vh-80px)] flex flex-col items-center justify-center p-6 text-center">
+                <span className="material-symbols-outlined text-5xl text-slate-300 mb-4">error_outline</span>
+                <h2 className="text-xl font-bold text-slate-800">Warranty Not Found</h2>
+                <p className="text-slate-500 mt-2 mb-6">This warranty record may have been deleted or does not exist.</p>
+                <button onClick={() => onNavigate && onNavigate('warranty')} className="bg-primary text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-primary/25">
+                    Go Back
+                </button>
+            </main>
+        );
+    }
 
     // DYNAMIC COLOR LOGIC
     const statLower = detail.status.toLowerCase();
-    const isAlert = detail.status === 'Alert';
-    const isExpired = detail.status === 'Expired' || statLower === 'rejected';
+    const isAlert = statLower.includes('alert') || statLower.includes('expiring');
+    const isExpired = statLower === 'expired' || statLower === 'rejected';
     const isPending = statLower === 'pending';
 
     const showWarning = isAlert || isExpired;
@@ -140,7 +143,7 @@ export function WarrantyDetail({ onNavigate, warrantyId, device }: WarrantyDetai
                         {/* Progress Bar Color Changes to Red if Alert/Expired */}
                         <div
                             className={`absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ${showWarning ? 'bg-red-400' : 'bg-gradient-to-r from-primary to-emerald-400'}`}
-                            style={{ width: `${Math.max(0, Math.min(100, (1 - detail.progress) * 100))}%` }}
+                            style={{ width: `${Math.max(0, Math.min(100, (detail.progress || 0) * 100))}%` }}
                         ></div>
                     </div>
                 </div>
@@ -173,7 +176,7 @@ export function WarrantyDetail({ onNavigate, warrantyId, device }: WarrantyDetai
                 <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-sm mb-8 page-enter" style={{ animationDelay: '300ms' }}>
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Warranty History</h3>
                     <div className="space-y-6">
-                        {detail.history.map((event, i) => (
+                        {detail.history?.map((event, i) => (
                             <div key={i} className="flex gap-4">
                                 <div className="flex flex-col items-center">
                                     <div className={`w-3 h-3 rounded-full ${event.is_last ? 'bg-primary' : 'bg-slate-300'}`}></div>
